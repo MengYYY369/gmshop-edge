@@ -51,7 +51,7 @@ const epayV1OrderQuerySchema = z.object({
 });
 
 export const epayV1PaymentProvider: PaymentProviderAdapter = {
-	checkoutPresentation: "redirect",
+	checkoutPresentation: "qr",
 	refundMode: "manual",
 	async createPayment(input, rawCredential, fetcher = fetch) {
 		const credential = epayV1CredentialSchema.parse(rawCredential);
@@ -82,11 +82,13 @@ export const epayV1PaymentProvider: PaymentProviderAdapter = {
 			},
 		);
 		const result = mapiResponseSchema.parse(await parseEpusdtJson(response));
+		// h5_url is the Alipay deeplink - best for mobile redirect or QR code on desktop.
+		// qrcode/web jump URL is a fallback (desktop shows "loading forever" for the jump page).
 		const checkoutUrl =
-			result.payurl ??
-			result.qrcode ??
-			result.urlscheme ??
 			result.h5_url ??
+			result.payurl ??
+			result.urlscheme ??
+			result.qrcode ??
 			result.out_trade_no ??
 			result.trade_no;
 		return {
