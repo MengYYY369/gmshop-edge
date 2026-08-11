@@ -5,7 +5,6 @@ import { sha256Hex } from "#/features/shop-payments/signature";
 import { DomainError } from "#/lib/domain-error";
 import { minorToDecimal } from "#/lib/units";
 import {
-	checkEpusdtHealth,
 	epusdtMerchantOrderId,
 	epusdtUrl,
 	manualRefundMethods,
@@ -176,9 +175,34 @@ export const gmpayPaymentProvider: PaymentProviderAdapter = {
 	...manualRefundMethods,
 	async checkHealth(rawCredential, fetcher = fetch) {
 		const credential = gmpayCredentialSchema.parse(rawCredential);
-		const response = await fetcher(epusdtUrl(credential.baseUrl, "/healthz"), {
-			signal: AbortSignal.timeout(10_000),
-		});
-		if (!response.ok) await checkEpusdtHealth(credential, fetcher);
+		try {
+			const response = await fetcher(
+				epusdtUrl(credential.baseUrl, "/healthz"),
+				{
+					method: "GET",
+					signal: AbortSignal.timeout(10_000),
+				},
+			);
+			if (!response.ok)
+				throw new DomainError(
+					"payment_provider_unavailable",
+					502,
+					`GMpay healthz returned ${response.status}`,
+				);
+			const body = (await response.json()) as { status?: string };
+			if (body.status !== "ok")
+				throw new DomainError(
+					"payment_provider_unavailable",
+					502,
+					`GMpay healthz status: ${body.status}`,
+				);
+		} catch (err) {
+			if (err instanceof DomainError) throw err;
+			throw new DomainError(
+				"payment_provider_unavailable",
+				502,
+				`GMpay unreachable: ${err instanceof Error ? err.message : String(err)}`,
+			);
+		}
 	},
 };
