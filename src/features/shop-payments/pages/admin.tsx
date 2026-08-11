@@ -172,19 +172,28 @@ export function PaymentConfigurationsPage() {
 				cell: ({ row }) =>
 					`${formatBasisPoints(row.original.feeBps)} + ${formatMinorAmount(row.original.fixedFeeMinor, row.original.currency, 2)}`,
 			},
-			{
-				accessorKey: "healthStatus",
-				header: m.payment_channels_health(),
-				cell: ({ row }) => (
-					<Badge
-						variant={
-							row.original.healthStatus === "healthy" ? "default" : "outline"
-						}
-					>
-						{healthLabel(row.original.healthStatus)}
-					</Badge>
-				),
-			},
+		{
+			accessorKey: "id",
+			header: "Channel ID",
+			cell: ({ row }) => (
+				<code className="select-all rounded bg-muted px-1.5 py-0.5 font-mono text-xs">
+					{row.original.id}
+				</code>
+			),
+		},
+		{
+			accessorKey: "healthStatus",
+			header: m.payment_channels_health(),
+			cell: ({ row }) => (
+				<Badge
+					variant={
+						row.original.healthStatus === "healthy" ? "default" : "outline"
+					}
+				>
+					{healthLabel(row.original.healthStatus)}
+				</Badge>
+			),
+		},
 			{
 				accessorKey: "attemptCount",
 				header: m.payment_channels_attempts(),

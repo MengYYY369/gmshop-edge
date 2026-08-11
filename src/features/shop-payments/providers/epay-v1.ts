@@ -29,15 +29,14 @@ const callbackSchema = z.object({
 const mapiResponseSchema = z.object({
 	code: z.union([z.literal(1), z.literal("1")]),
 	msg: z.string(),
-	data: z.object({
-		trade_no: z.string().min(1),
-		out_trade_no: z.string().min(1),
-		money: z.string(),
-		type: z.string(),
-		payurl: z.string().optional(),
-		qrcode: z.string().optional(),
-		urlscheme: z.string().optional(),
-	}),
+	trade_no: z.string().min(1),
+	money: z.string(),
+	out_trade_no: z.string().optional(),
+	type: z.string().optional(),
+	payurl: z.string().optional(),
+	qrcode: z.string().optional(),
+	urlscheme: z.string().optional(),
+	h5_url: z.string().optional(),
 });
 
 const epayV1OrderQuerySchema = z.object({
@@ -84,12 +83,14 @@ export const epayV1PaymentProvider: PaymentProviderAdapter = {
 		);
 		const result = mapiResponseSchema.parse(await parseEpusdtJson(response));
 		const checkoutUrl =
-			result.data.payurl ??
-			result.data.qrcode ??
-			result.data.urlscheme ??
-			result.data.out_trade_no;
+			result.payurl ??
+			result.qrcode ??
+			result.urlscheme ??
+			result.h5_url ??
+			result.out_trade_no ??
+			result.trade_no;
 		return {
-			providerPaymentId: result.data.trade_no,
+			providerPaymentId: result.trade_no,
 			checkoutUrl,
 			expiresAt: null,
 		};
