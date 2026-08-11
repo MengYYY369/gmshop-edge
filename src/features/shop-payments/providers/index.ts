@@ -6,7 +6,9 @@ import { DomainError } from "#/lib/domain-error";
 import { createAutomaticAlipayProvider } from "./alipay";
 import { cryptomusPaymentProvider } from "./cryptomus";
 import { epayPaymentProvider } from "./epay";
+import { epayV1PaymentProvider } from "./epay-v1";
 import { gmpayPaymentProvider } from "./gmpay";
+import { paypalPaymentProvider } from "./paypal";
 import { stripePaymentProvider } from "./stripe";
 import { createAutomaticWechatPayProvider } from "./wechatpay";
 
@@ -18,6 +20,8 @@ const providers: Record<PaymentProvider, PaymentProviderAdapter> = {
 	cryptomus: cryptomusPaymentProvider,
 	gmpay: gmpayPaymentProvider,
 	epay: epayPaymentProvider,
+	epay_v1: epayV1PaymentProvider,
+	paypal: paypalPaymentProvider,
 	alipay_page: automaticAlipayProvider,
 	alipay_wap: automaticAlipayProvider,
 	wechat_native: automaticWechatPayProvider,

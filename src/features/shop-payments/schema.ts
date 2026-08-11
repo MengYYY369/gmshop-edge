@@ -3,7 +3,9 @@ import {
 	alipayCredentialSchema,
 	cryptomusCredentialSchema,
 	epayCredentialSchema,
+	epayV1CredentialSchema,
 	gmpayCredentialSchema,
+	paypalCredentialSchema,
 	paymentProviderValues,
 	stripeCredentialSchema,
 	wechatCredentialSchema,
@@ -170,6 +172,32 @@ export const paymentChannelInputSchema = z
 				);
 			return;
 		}
+		if (value.provider === "paypal") {
+			const changingCredential = Boolean(
+				value.paypalClientId ||
+					value.paypalClientSecret ||
+					value.paypalWebhookId,
+			);
+			if (!value.id || changingCredential)
+				addCredentialIssues(
+					paypalCredentialSchema.safeParse({
+						clientId: value.paypalClientId,
+						clientSecret: value.paypalClientSecret,
+						webhookId: value.paypalWebhookId,
+						isSandbox:
+							value.paypalIsSandbox === "sandbox" ||
+							value.paypalIsSandbox === true,
+					}),
+					{
+						clientId: "paypalClientId",
+						clientSecret: "paypalClientSecret",
+						webhookId: "paypalWebhookId",
+						isSandbox: "paypalIsSandbox",
+					},
+					context,
+				);
+			return;
+		}
 		const changingEpusdt = Boolean(
 			value.epusdtBaseUrl || value.epusdtPid || value.epusdtSecretKey,
 		);
@@ -177,7 +205,9 @@ export const paymentChannelInputSchema = z
 			const schema =
 				value.provider === "gmpay"
 					? gmpayCredentialSchema
-					: epayCredentialSchema;
+						: value.provider === "epay_v1"
+							? epayV1CredentialSchema
+							: epayCredentialSchema;
 			addCredentialIssues(
 				schema.safeParse({
 					baseUrl: value.epusdtBaseUrl,

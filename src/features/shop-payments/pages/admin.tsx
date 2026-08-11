@@ -404,7 +404,7 @@ function newChannelValues(
 		epusdtBaseUrl: "",
 		epusdtPid: "",
 		epusdtSecretKey: "",
-		epusdtPaymentMethod: provider === "epay" ? "alipay" : "",
+		epusdtPaymentMethod: provider === "epay" || provider === "epay_v1" ? "alipay" : "",
 		alipayAppId: "",
 		alipaySellerId: "",
 		alipayPrivateKeyPem: "",
@@ -418,6 +418,10 @@ function newChannelValues(
 		wechatPlatformPublicKeyPem: "",
 		defaultToken: "",
 		defaultNetwork: "",
+		paypalClientId: "",
+		paypalClientSecret: "",
+		paypalWebhookId: "",
+		paypalIsSandbox: "live",
 	};
 }
 
@@ -580,7 +584,9 @@ function channelFormSchema(editing: boolean) {
 			extra,
 			formItemProps: { className: "sm:col-span-2" },
 			hidden: (values: Record<string, unknown>) =>
-				values.type !== "gmpay" && values.type !== "epay",
+				values.type !== "gmpay" &&
+				values.type !== "epay" &&
+				values.type !== "epay_v1",
 		},
 		{
 			name: "epusdtPid",
@@ -588,7 +594,9 @@ function channelFormSchema(editing: boolean) {
 			required: !editing,
 			extra,
 			hidden: (values: Record<string, unknown>) =>
-				values.type !== "gmpay" && values.type !== "epay",
+				values.type !== "gmpay" &&
+				values.type !== "epay" &&
+				values.type !== "epay_v1",
 		},
 		{
 			name: "epusdtSecretKey",
@@ -597,14 +605,17 @@ function channelFormSchema(editing: boolean) {
 			required: !editing,
 			extra,
 			hidden: (values: Record<string, unknown>) =>
-				values.type !== "gmpay" && values.type !== "epay",
+				values.type !== "gmpay" &&
+				values.type !== "epay" &&
+				values.type !== "epay_v1",
 		},
 		{
 			name: "epusdtPaymentMethod",
 			label: m.payment_channels_epusdt_payment_method(),
 			tooltip: m.payment_channels_epusdt_payment_method_hint(),
 			required: true,
-			hidden: (values: Record<string, unknown>) => values.type !== "epay",
+			hidden: (values: Record<string, unknown>) =>
+				values.type !== "epay" && values.type !== "epay_v1",
 		},
 		{
 			name: "defaultToken",
@@ -613,6 +624,7 @@ function channelFormSchema(editing: boolean) {
 			hidden: (values: Record<string, unknown>) =>
 				values.type !== "gmpay" &&
 				values.type !== "epay" &&
+				values.type !== "epay_v1" &&
 				values.type !== "cryptomus",
 		},
 		{
@@ -622,7 +634,48 @@ function channelFormSchema(editing: boolean) {
 			hidden: (values: Record<string, unknown>) =>
 				values.type !== "gmpay" &&
 				values.type !== "epay" &&
+				values.type !== "epay_v1" &&
 				values.type !== "cryptomus",
+		},
+		{
+			name: "paypalClientId",
+			label: "PayPal Client ID",
+			required: true,
+			extra,
+			hidden: (values: Record<string, unknown>) =>
+				values.type !== "paypal",
+		},
+		{
+			name: "paypalClientSecret",
+			label: "PayPal Client Secret",
+			valueType: "password" as const,
+			required: true,
+			extra,
+			hidden: (values: Record<string, unknown>) =>
+				values.type !== "paypal",
+		},
+		{
+			name: "paypalWebhookId",
+			label: "PayPal Webhook ID",
+			tooltip: "Webhook ID from PayPal Developer Dashboard",
+			required: true,
+			extra,
+			hidden: (values: Record<string, unknown>) =>
+				values.type !== "paypal",
+		},
+		{
+			name: "paypalIsSandbox",
+			label: "Environment",
+			valueType: "select" as const,
+			required: true,
+			fieldProps: {
+				options: [
+					{ value: "sandbox", label: "Sandbox" },
+					{ value: "live", label: "Live" },
+				],
+			},
+			hidden: (values: Record<string, unknown>) =>
+				values.type !== "paypal",
 		},
 	];
 }
@@ -656,6 +709,10 @@ function channelValues(channel: Channel) {
 		wechatPlatformPublicKeyPem: "",
 		defaultToken: channel.defaultToken,
 		defaultNetwork: channel.defaultNetwork,
+		paypalClientId: "",
+		paypalClientSecret: "",
+		paypalWebhookId: "",
+		paypalIsSandbox: "",
 	};
 }
 
@@ -665,6 +722,8 @@ function paymentProviderLabel(
 	if (provider === "gmpay") return "GMpay";
 	if (provider === "cryptomus") return "Cryptomus";
 	if (provider === "epay") return "EPay";
+	if (provider === "epay_v1") return "EPay V1";
+	if (provider === "paypal") return "PayPal";
 	if (provider === "alipay_page" || provider === "alipay_wap") return "Alipay";
 	if (provider === "wechat_native" || provider === "wechat_h5")
 		return "WeChat Pay";
@@ -678,6 +737,8 @@ const paymentProviderMenu = [
 	{ family: "stripe", provider: "stripe", label: "Stripe" },
 	{ family: "cryptomus", provider: "cryptomus", label: "Cryptomus" },
 	{ family: "epay", provider: "epay", label: "EPay" },
+	{ family: "epay_v1", provider: "epay_v1", label: "EPay V1" },
+	{ family: "paypal", provider: "paypal", label: "PayPal" },
 ] as const;
 
 const paymentTypeOptions = paymentProviderMenu.map((item) => ({
@@ -716,7 +777,9 @@ function paymentChannelInputFromForm(
 		epusdtPid: String(values.epusdtPid ?? ""),
 		epusdtSecretKey: String(values.epusdtSecretKey ?? ""),
 		epusdtPaymentMethod:
-			provider === "epay" ? String(values.epusdtPaymentMethod ?? "alipay") : "",
+			provider === "epay" || provider === "epay_v1"
+				? String(values.epusdtPaymentMethod ?? "alipay")
+				: "",
 		alipayAppId: String(values.alipayAppId ?? ""),
 		alipaySellerId: String(values.alipaySellerId ?? ""),
 		alipayPrivateKeyPem: String(values.alipayPrivateKeyPem ?? ""),
@@ -730,6 +793,10 @@ function paymentChannelInputFromForm(
 		wechatApiV3Key: String(values.wechatApiV3Key ?? ""),
 		wechatPlatformSerialNumber: String(values.wechatPlatformSerialNumber ?? ""),
 		wechatPlatformPublicKeyPem: String(values.wechatPlatformPublicKeyPem ?? ""),
+		paypalClientId: String(values.paypalClientId ?? ""),
+		paypalClientSecret: String(values.paypalClientSecret ?? ""),
+		paypalWebhookId: String(values.paypalWebhookId ?? ""),
+		paypalIsSandbox: String(values.paypalIsSandbox ?? "live"),
 		defaultToken: String(values.defaultToken ?? ""),
 		defaultNetwork: String(values.defaultNetwork ?? ""),
 	};

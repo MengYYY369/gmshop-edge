@@ -6,6 +6,8 @@ export const paymentProviderValues = [
 	"cryptomus",
 	"gmpay",
 	"epay",
+	"epay_v1",
+	"paypal",
 	"alipay_page",
 	"alipay_wap",
 	"wechat_native",
@@ -17,6 +19,8 @@ export type PaymentProviderFamily =
 	| "cryptomus"
 	| "gmpay"
 	| "epay"
+	| "epay_v1"
+	| "paypal"
 	| "alipay"
 	| "wechat";
 
@@ -27,6 +31,17 @@ export function paymentProviderFamily(
 	if (provider === "wechat_native" || provider === "wechat_h5") return "wechat";
 	return provider;
 }
+
+export const epayV1CredentialSchema = epusdtCredentialSchema()
+	.extend({ paymentMethod: paymentMethodSchema })
+	.superRefine((value, context) => {
+		if (/^\d+$/.test(value.pid)) return;
+		context.addIssue({
+			code: "custom",
+			path: ["pid"],
+			message: "EPay V1 requires a numeric PID",
+		});
+	});
 
 export function paymentProviderDefaultCurrency(
 	provider: PaymentProvider,
@@ -167,6 +182,13 @@ export const epayCredentialSchema = epusdtCredentialSchema()
 			message: "EPay requires a numeric PID",
 		});
 	});
+
+export const paypalCredentialSchema = z.object({
+	clientId: z.string().trim().min(20).max(256),
+	clientSecret: z.string().min(20).max(512),
+	webhookId: z.string().trim().min(10).max(256),
+	isSandbox: z.boolean().default(false),
+});
 
 export const alipayCredentialSchema = z.object({
 	appId: z
