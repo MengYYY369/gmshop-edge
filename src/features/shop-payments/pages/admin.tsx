@@ -654,8 +654,10 @@ function channelFormSchema(editing: boolean) {
 		{
 			name: "paypalWebhookId",
 			label: "PayPal Webhook ID",
-			tooltip: "Webhook ID from PayPal Developer Dashboard",
-			required: true,
+			tooltip: editing
+				? "Add Webhook ID from PayPal Developer Dashboard. Webhook URL is shown below."
+				: "Optional during creation. Add later after registering webhook in PayPal.",
+			required: false,
 			extra,
 			hidden: (values: Record<string, unknown>) =>
 				values.type !== "paypal",

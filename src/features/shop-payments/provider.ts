@@ -190,7 +190,7 @@ export const epayCredentialSchema = epusdtCredentialSchema()
 export const paypalCredentialSchema = z.object({
 	clientId: z.string().trim().min(20).max(256),
 	clientSecret: z.string().min(20).max(512),
-	webhookId: z.string().trim().min(10).max(256),
+	webhookId: z.string().trim().max(256).default(""),
 	isSandbox: z.boolean().default(false),
 });
 
