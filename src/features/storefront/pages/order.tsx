@@ -103,7 +103,19 @@ export function StorefrontOrderPage({
 		onSuccess: async () => {
 			await order.refetch();
 		},
-		onError: () => toast.error(m.store_payment_retry_failed()),
+		onError: (error: unknown) => {
+			const code = error && typeof error === "object" && "code" in error
+				? String((error as { code: unknown }).code)
+				: null;
+			const serverMessage =
+				error && typeof error === "object" && "message" in error
+					? String((error as { message: unknown }).message)
+					: null;
+			if (code === "payment_amount_mismatch")
+				toast.error("EPay 返回金额与请求不一致，请联系支付平台修复商户配置");
+			else if (serverMessage) toast.error(serverMessage);
+			else toast.error(m.store_payment_retry_failed());
+		},
 	});
 	if (!accountOrder && !guestAccessReady) return <OrderLoadingSkeleton />;
 	if (!order.data) {
