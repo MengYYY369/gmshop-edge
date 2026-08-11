@@ -439,11 +439,12 @@ export const deletePaymentChannelFn = createServerFn({ method: "POST" })
 				"Payment channel not found",
 			);
 		await db.$client.batch([
-			db.$client.prepare("PRAGMA foreign_keys = OFF"),
+			db.$client
+				.prepare("DELETE FROM payment_attempts WHERE channel_id = ?")
+				.bind(data.id),
 			db.$client
 				.prepare("DELETE FROM payment_channels WHERE id = ?")
 				.bind(data.id),
-			db.$client.prepare("PRAGMA foreign_keys = ON"),
 			createAuditStatement(db.$client, request, currentUser.id, {
 				action: "payment_channel.deleted",
 				targetType: "payment_channel",
