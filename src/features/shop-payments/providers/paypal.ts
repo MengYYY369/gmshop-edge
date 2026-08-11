@@ -184,12 +184,15 @@ export const paypalPaymentProvider: PaymentProviderAdapter = {
 			fetcher,
 		});
 		const order = orderResponseSchema.parse(await response.json());
-		const approveLink = order.links.find((link) => link.rel === "approve");
+		// PayPal v2 API may return 'approve' (classic) or 'payer-action' (newer integrations)
+		const approveLink = order.links.find(
+			(link) => link.rel === "approve" || link.rel === "payer-action",
+		);
 		if (!approveLink)
 			throw new DomainError(
 				"payment_provider_invalid_response",
 				502,
-				"PayPal order missing approve link",
+				`PayPal order missing approve/payer-action link. Available rels: ${order.links.map((l) => l.rel).join(",")}`,
 			);
 		return {
 			providerPaymentId: order.id,
