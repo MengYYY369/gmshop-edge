@@ -82,6 +82,15 @@ export const epayV1PaymentProvider: PaymentProviderAdapter = {
 			},
 		);
 		const result = mapiResponseSchema.parse(await parseEpusdtJson(response));
+		// 安全校验：EPay 返回的金额必须与请求金额一致
+		const requestedMoney = minorToDecimal(input.amountMinor, input.currencyDecimals);
+		if (result.money && result.money !== requestedMoney) {
+			throw new DomainError(
+				"payment_amount_mismatch",
+				502,
+				`EPay 返回金额 ${result.money} 与请求金额 ${requestedMoney} 不一致，可能是商户账户配置异常`,
+			);
+		}
 		// h5_url is the Alipay deeplink - best for mobile redirect or QR code on desktop.
 		// qrcode/web jump URL is a fallback (desktop shows "loading forever" for the jump page).
 		const checkoutUrl =
