@@ -32,6 +32,27 @@ export function paymentProviderFamily(
 	return provider;
 }
 
+const epusdtCredentialFields = {
+	baseUrl: z
+		.url()
+		.max(2_048)
+		.refine(isSafeWebhookUrl, "Enter a public HTTPS Epusdt URL")
+		.transform((value) => value.replace(/\/+$/, "")),
+	pid: z.string().trim().min(1).max(80),
+	secretKey: z.string().min(8).max(512),
+};
+
+function epusdtCredentialSchema() {
+	return z.object(epusdtCredentialFields);
+}
+
+const paymentMethodSchema = z
+	.string()
+	.trim()
+	.toLowerCase()
+	.regex(/^[a-z][a-z0-9_-]{0,39}$/)
+	.default("alipay");
+
 export const epayV1CredentialSchema = epusdtCredentialSchema()
 	.extend({ paymentMethod: paymentMethodSchema })
 	.superRefine((value, context) => {
@@ -153,27 +174,6 @@ export const cryptomusCredentialSchema = z.object({
 	merchantId: z.string().uuid(),
 	paymentApiKey: z.string().trim().min(8).max(512),
 });
-
-const epusdtCredentialFields = {
-	baseUrl: z
-		.url()
-		.max(2_048)
-		.refine(isSafeWebhookUrl, "Enter a public HTTPS Epusdt URL")
-		.transform((value) => value.replace(/\/+$/, "")),
-	pid: z.string().trim().min(1).max(80),
-	secretKey: z.string().min(8).max(512),
-};
-
-function epusdtCredentialSchema() {
-	return z.object(epusdtCredentialFields);
-}
-
-const paymentMethodSchema = z
-	.string()
-	.trim()
-	.toLowerCase()
-	.regex(/^[a-z][a-z0-9_-]{0,39}$/)
-	.default("alipay");
 
 export const gmpayCredentialSchema = epusdtCredentialSchema();
 export const epayCredentialSchema = epusdtCredentialSchema()
