@@ -449,6 +449,7 @@ export async function processShopPaymentEvent(
 		db,
 		channelId,
 		event.providerPaymentId,
+		event.merchantOrderId,
 	);
 	validateEventMoney(context, event);
 	if (context.attempt_status === "succeeded") {
@@ -932,7 +933,11 @@ async function loadPaymentContext(
 	db: D1Database,
 	channelId: string,
 	providerPaymentId: string,
+	merchantOrderId?: string | null,
 ) {
+	// 先用 provider_payment_id 精确匹配；
+	// 对于 PayPal，webhook 的 resource.id 是 capture ID，不等于 order ID，
+	// 此时需要用 merchantOrderId（= PayPal order ID）做回退匹配。
 	const context = await db
 		.prepare(
 			`SELECT pa.id AS attempt_id, pa.status AS attempt_status, pa.amount_minor,
@@ -948,9 +953,17 @@ async function loadPaymentContext(
 			 LEFT JOIN wallet_topups topup ON topup.id = pa.wallet_topup_id
 			 LEFT JOIN users topup_user ON topup_user.id = topup.user_id
 			 JOIN payment_channels pc ON pc.id = pa.channel_id
-			 WHERE pa.channel_id = ? AND pa.provider_payment_id = ? LIMIT 1`,
+			 WHERE pa.channel_id = ? AND (
+			  pa.provider_payment_id = ?
+			  OR (? IS NOT NULL AND pa.provider_payment_id = ?)
+			 ) LIMIT 1`,
 		)
-		.bind(channelId, providerPaymentId)
+		.bind(
+			channelId,
+			providerPaymentId,
+			merchantOrderId ?? null,
+			merchantOrderId ?? null,
+		)
 		.first<PaymentContext>();
 	if (!context)
 		throw new DomainError(

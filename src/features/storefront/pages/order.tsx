@@ -407,15 +407,14 @@ export function StorefrontOrderPage({
 											) : null}
 										</div>
 										{paymentCanResume && paymentUrl && !paymentUsesQr ? (
-											<Button asChild className="h-12 w-full">
-												<a
-													href={paymentUrl}
-													rel="noopener noreferrer"
-													target="_blank"
-												>
-													<CreditCard />
-													{m.store_resume_payment()}
-												</a>
+											<Button
+												className="h-12 w-full"
+												onClick={() =>
+													window.location.assign(paymentUrl)
+												}
+											>
+												<CreditCard />
+												{m.store_resume_payment()}
 											</Button>
 										) : !paymentCanResume && !paymentExpired ? (
 											<Button

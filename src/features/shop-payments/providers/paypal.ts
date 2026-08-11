@@ -234,7 +234,8 @@ export const paypalPaymentProvider: PaymentProviderAdapter = {
 				"Invalid payment callback method",
 			);
 		const body = await readPaymentWebhookText(request);
-		const event = webhookEventSchema.parse(JSON.parse(body));
+		const rawEvent = JSON.parse(body);
+		const event = webhookEventSchema.parse(rawEvent);
 		const transmissionId = request.headers.get("paypal-transmission-id") ?? "";
 		const certUrl = request.headers.get("paypal-cert-url") ?? "";
 		const authAlgo = request.headers.get("paypal-auth-algo") ?? "";
@@ -256,7 +257,7 @@ export const paypalPaymentProvider: PaymentProviderAdapter = {
 					transmission_sig: transmissionSig,
 					transmission_time: transmissionTime,
 					webhook_id: credential.webhookId,
-					webhook_event: JSON.parse(body),
+					webhook_event: rawEvent,
 				},
 				fetcher,
 			},
@@ -275,9 +276,18 @@ export const paypalPaymentProvider: PaymentProviderAdapter = {
 			event.event_type === "PAYMENT.CAPTURE.DENIED" ||
 			event.event_type === "PAYMENT.CAPTURE.REVERSED";
 		const amount = event.resource?.amount;
+		// PayPal PAYMENT.CAPTURE.COMPLETED 的 resource.id 是 capture ID，
+		// 而非 order ID。我们需要从 supplementary_data.related_ids.order_id 获取原始订单 ID，
+		// 才能匹配到我们存储的 providerPaymentId（= order ID）。
+		const captureId = event.resource.id;
+		const orderIdFromCapture =
+			(event.resource as { supplementary_data?: { related_ids?: { order_id?: string } } })
+				?.supplementary_data?.related_ids?.order_id ?? null;
 		return {
-			 providerEventId: event.id,
-			providerPaymentId: event.resource.id,
+			providerEventId: event.id,
+			// 用 capture ID 作为主 ID，order_id 作为 merchantOrderId 用于匹配
+			providerPaymentId: captureId,
+			merchantOrderId: orderIdFromCapture,
 			type: succeeded
 				? "payment_succeeded"
 				: failed
