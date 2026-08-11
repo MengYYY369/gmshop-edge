@@ -40,12 +40,6 @@ const mapiResponseSchema = z.object({
 	}),
 });
 
-const epayV1HealthResponseSchema = z.object({
-	code: z.union([z.literal(1), z.literal("1")]),
-	pid: z.union([z.number().int().positive(), z.string().min(1)]),
-	active: z.union([z.literal(1), z.literal("1")]).optional(),
-});
-
 const epayV1OrderQuerySchema = z.object({
 	code: z.union([z.literal(1), z.literal("1")]),
 	msg: z.string(),
@@ -152,13 +146,23 @@ export const epayV1PaymentProvider: PaymentProviderAdapter = {
 	...manualRefundMethods,
 	async checkHealth(rawCredential, fetcher = fetch) {
 		const credential = epayV1CredentialSchema.parse(rawCredential);
-		const url = new URL(epusdtUrl(credential.baseUrl, "/api.php"));
-		url.searchParams.set("act", "query");
-		url.searchParams.set("pid", credential.pid);
-		url.searchParams.set("key", credential.secretKey);
-		const response = await fetcher(url.toString(), {
-			signal: AbortSignal.timeout(10_000),
-		});
-		epayV1HealthResponseSchema.parse(await parseEpusdtJson(response));
+		// EPay V1 (zeyuyun-style) has no /api.php and /mapi.php always requires a
+		// signature + order params. A real health check would create a spurious
+		// order, so we only verify connectivity: a POST to /mapi.php with any body
+		// returns valid JSON (code:0 for missing fields) when the API is up.
+		// A 404 or HTML page means the URL is wrong.
+		const response = await fetcher(
+			epusdtUrl(credential.baseUrl, "/mapi.php"),
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/x-www-form-urlencoded" },
+				body: `pid=${encodeURIComponent(credential.pid)}`,
+				signal: AbortSignal.timeout(10_000),
+			},
+		);
+		const json = z
+			.object({ code: z.union([z.number(), z.string()]) })
+			.parse(await parseEpusdtJson(response));
+		if (json.code === 1 || json.code === "1") return;
 	},
 };
