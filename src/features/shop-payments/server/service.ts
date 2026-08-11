@@ -48,6 +48,7 @@ type PaymentCreationContext = {
 	credential_encrypted: string | null;
 	default_token: string;
 	default_network: string;
+	channel_currency: string | null;
 };
 
 type OrderItem = EntitlementOrderItem & {
@@ -103,7 +104,8 @@ export async function createShopPayment(
 			 o.total_minor AS amount_minor, o.currency, o.currency_decimals,
 			 o.contact_email,
 			 pc.id AS channel_id, pc.provider, pc.credential_encrypted,
-			 pc.default_token, pc.default_network
+			 pc.default_token, pc.default_network,
+			 pc.currency AS channel_currency
 			 FROM shop_orders o JOIN payment_channels pc ON pc.id = ?
 			 WHERE o.id = ? AND pc.enabled = 1 LIMIT 1`,
 		)
@@ -121,7 +123,8 @@ export async function createShopPayment(
 		amountMinor: context.amount_minor,
 		currency: context.currency,
 		currencyDecimals: context.currency_decimals,
-		paymentCurrency: input.paymentCurrency ?? context.currency,
+		paymentCurrency:
+			input.paymentCurrency ?? context.channel_currency ?? context.currency,
 	});
 	const credential = await loadCredential(db, context.credential_encrypted);
 	const attemptId = crypto.randomUUID();
