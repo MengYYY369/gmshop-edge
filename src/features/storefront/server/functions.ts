@@ -245,20 +245,20 @@ export const retryStorePaymentFn = createServerFn({ method: "POST" })
 		});
 		if (order.status !== "pending_payment" || order.expiresAt <= Date.now())
 			throw new DomainError("order_not_payable", 409, "Order cannot be paid");
-		const attempt = await db
-			.prepare(
-				`SELECT channel_id, status, currency FROM payment_attempts WHERE order_id = ?
-				 ORDER BY created_at DESC, id DESC LIMIT 1`,
-			)
-			.bind(order.id)
-			.first<{ channel_id: string; status: string; currency: string }>();
-		if (!attempt)
+	const attempt = await db
+		.prepare(
+			`SELECT channel_id, status FROM payment_attempts WHERE order_id = ?
+			 ORDER BY created_at DESC, id DESC LIMIT 1`,
+		)
+		.bind(order.id)
+		.first<{ channel_id: string; status: string }>();
+	if (!attempt)
 			throw new DomainError(
 				"payment_channel_unavailable",
 				404,
 				"Payment channel unavailable",
 			);
-		if (!["failed", "cancelled", "expired"].includes(attempt.status))
+	if (!["failed", "cancelled", "expired"].includes(attempt.status))
 			throw new DomainError(
 				"payment_retry_invalid",
 				409,
@@ -271,7 +271,6 @@ export const retryStorePaymentFn = createServerFn({ method: "POST" })
 		return createShopPayment(db, {
 			orderId: order.id,
 			channelId: attempt.channel_id,
-			paymentCurrency: attempt.currency,
 			idempotencyKey: `checkout-retry:${order.id}:${crypto.randomUUID()}`,
 			successUrl: `${origin}${orderPath}`,
 			cancelUrl: `${origin}${orderPath}`,

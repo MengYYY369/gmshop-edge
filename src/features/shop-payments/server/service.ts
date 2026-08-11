@@ -123,8 +123,14 @@ export async function createShopPayment(
 		amountMinor: context.amount_minor,
 		currency: context.currency,
 		currencyDecimals: context.currency_decimals,
+		// 货币选择优先级：
+		// 1. 用户明确选择了不同于订单货币的支付货币 → 使用用户选择
+		// 2. 渠道配置了特定货币 → 使用渠道货币（PayPal: USD, GMpay: USDT 等）
+		// 3. 回退到订单货币
 		paymentCurrency:
-			input.paymentCurrency ?? context.channel_currency ?? context.currency,
+			input.paymentCurrency && input.paymentCurrency !== context.currency
+				? input.paymentCurrency
+				: context.channel_currency ?? context.currency,
 	});
 	const credential = await loadCredential(db, context.credential_encrypted);
 	const attemptId = crypto.randomUUID();
