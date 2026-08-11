@@ -27,7 +27,7 @@ const callbackSchema = z.object({
 });
 
 const mapiResponseSchema = z.object({
-	code: z.literal(1),
+	code: z.union([z.literal(1), z.literal("1")]),
 	msg: z.string(),
 	data: z.object({
 		trade_no: z.string().min(1),
@@ -41,13 +41,13 @@ const mapiResponseSchema = z.object({
 });
 
 const epayV1HealthResponseSchema = z.object({
-	code: z.literal(1),
-	pid: z.number().int().positive(),
-	active: z.literal(1).optional(),
+	code: z.union([z.literal(1), z.literal("1")]),
+	pid: z.union([z.number().int().positive(), z.string().min(1)]),
+	active: z.union([z.literal(1), z.literal("1")]).optional(),
 });
 
 const epayV1OrderQuerySchema = z.object({
-	code: z.literal(1),
+	code: z.union([z.literal(1), z.literal("1")]),
 	msg: z.string(),
 	trade_no: z.string(),
 	out_trade_no: z.string(),

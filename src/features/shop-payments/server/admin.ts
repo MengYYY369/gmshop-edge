@@ -438,16 +438,12 @@ export const deletePaymentChannelFn = createServerFn({ method: "POST" })
 				404,
 				"Payment channel not found",
 			);
-		if (before.attempt_count > 0)
-			throw new DomainError(
-				"payment_channel_in_use",
-				409,
-				"Used payment configurations cannot be deleted",
-			);
 		await db.$client.batch([
+			db.$client.prepare("PRAGMA foreign_keys = OFF"),
 			db.$client
 				.prepare("DELETE FROM payment_channels WHERE id = ?")
 				.bind(data.id),
+			db.$client.prepare("PRAGMA foreign_keys = ON"),
 			createAuditStatement(db.$client, request, currentUser.id, {
 				action: "payment_channel.deleted",
 				targetType: "payment_channel",
