@@ -1,16 +1,18 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
-import { useState } from "react";
+import { Link, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Upload, UploadTrigger } from "#/components/pro/base/fields/upload";
 import { FormItem } from "#/components/pro/form";
 import { Button } from "#/components/ui/button";
+import { Input } from "#/components/ui/input";
 import {
 	configurationLogoContentTypes,
 	configurationLogoMaxBytes,
 } from "#/lib/configuration-logo";
 import { m } from "#/paraglide/messages";
+import { cn } from "#/lib/utils";
 
 type LogoResult = { url: string };
 type LogoInput = {
@@ -33,6 +35,9 @@ type ConfigurationLogoFieldProps = {
 	remove?: (input: { data: { id: string } }) => Promise<unknown>;
 	onChanged?: () => Promise<unknown>;
 	onPendingChange?: (draft: ConfigurationLogoDraft | null) => void;
+	allowDirectUrl?: boolean;
+	directUrl?: string;
+	onDirectUrlChange?: (url: string) => void;
 };
 
 export function ConfigurationLogoField({
@@ -42,9 +47,19 @@ export function ConfigurationLogoField({
 	remove,
 	onChanged,
 	onPendingChange,
+	allowDirectUrl = true,
+	directUrl: externalDirectUrl,
+	onDirectUrlChange,
 }: ConfigurationLogoFieldProps) {
 	const [preview, setPreview] = useState(url ?? "");
 	const [busy, setBusy] = useState(false);
+	const [internalDirectUrl, setInternalDirectUrl] = useState("");
+	const directUrlValue = externalDirectUrl ?? internalDirectUrl;
+	const setDirectUrl = onDirectUrlChange ?? setInternalDirectUrl;
+
+	useEffect(() => {
+		setPreview(url ?? "");
+	}, [url]);
 
 	async function uploadFile(file?: File) {
 		if (!file) return false;
@@ -88,60 +103,108 @@ export function ConfigurationLogoField({
 		}
 	}
 
+	function handleDirectUrlApply() {
+		const trimmed = directUrlValue.trim();
+		if (!trimmed) return;
+		try {
+			new URL(trimmed);
+		} catch {
+			toast.error("Invalid URL");
+			return;
+		}
+		setPreview(trimmed);
+		setDirectUrl("");
+	}
+
 	return (
 		<FormItem
 			label={m.settings_site_logo_title()}
-			description={m.configuration_logo_description()}
+			description={
+				allowDirectUrl
+					? "Upload an image or paste a CDN URL"
+					: m.configuration_logo_description()
+			}
 		>
-			<div className="relative size-32 overflow-hidden rounded-xl bg-muted">
-				<Upload
-					accept={configurationLogoContentTypes.join(",")}
-					className="size-full"
-					disabled={busy}
-					maxCount={1}
-					multiple={false}
-					upload={async (files) => uploadFile(files[0])}
-					value={[]}
-				>
-					{preview ? (
-						<img
-							alt={m.settings_site_logo_title()}
-							className="size-full object-contain p-2"
-							src={preview}
-						/>
-					) : null}
-					<UploadTrigger
-						className={
-							preview
-								? "absolute inset-0 size-full border-2 bg-background/10 text-transparent opacity-0 hover:bg-background/55 hover:text-foreground hover:opacity-100 focus-visible:bg-background/55 focus-visible:text-foreground focus-visible:opacity-100"
-								: "absolute inset-0 size-full p-3"
-						}
-					/>
-				</Upload>
-				{preview ? (
-					<Button
-						aria-label={m.common_delete()}
-						className="absolute top-2 end-2 z-20"
+			<div className="flex flex-col gap-3">
+				<div className="relative size-32 overflow-hidden rounded-xl bg-muted">
+					<Upload
+						accept={configurationLogoContentTypes.join(",")}
+						className="size-full"
 						disabled={busy}
-						onClick={async () => {
-							setBusy(true);
-							try {
-								if (id && remove) await remove({ data: { id } });
-								else onPendingChange?.(null);
-								setPreview("");
-								await onChanged?.();
-							} catch {
-								toast.error(m.settings_save_failed());
-							} finally {
-								setBusy(false);
-							}
-						}}
-						size="icon-sm"
-						type="button"
-						variant="secondary"
+						maxCount={1}
+						multiple={false}
+						upload={async (files) => uploadFile(files[0])}
+						value={[]}
 					>
-						<Trash2 />
-					</Button>
+						{preview ? (
+							<img
+								alt={m.settings_site_logo_title()}
+								className="size-full object-contain p-2"
+								src={preview}
+							/>
+						) : null}
+						<UploadTrigger
+							className={cn(
+								"absolute inset-0 size-full p-3",
+								preview &&
+									"border-2 bg-background/10 text-transparent opacity-0 hover:bg-background/55 hover:text-foreground hover:opacity-100 focus-visible:bg-background/55 focus-visible:text-foreground focus-visible:opacity-100",
+							)}
+						/>
+					</Upload>
+					{preview ? (
+						<Button
+							aria-label={m.common_delete()}
+							className="absolute top-2 end-2 z-20"
+							disabled={busy}
+							onClick={async () => {
+								setBusy(true);
+								try {
+									if (id && remove) await remove({ data: { id } });
+									else onPendingChange?.(null);
+									setPreview("");
+									await onChanged?.();
+								} catch {
+									toast.error(m.settings_save_failed());
+								} finally {
+									setBusy(false);
+								}
+							}}
+							size="icon-sm"
+							type="button"
+							variant="secondary"
+						>
+							<Trash2 />
+						</Button>
+					) : null}
+				</div>
+				{allowDirectUrl ? (
+					<div className="flex gap-2">
+						<div className="relative flex-1">
+							<Link className="text-muted-foreground absolute start-3 top-1/2 size-4 -translate-y-1/2" />
+							<Input
+								className="ps-9"
+								disabled={busy}
+								placeholder="https://cdn.example.com/logo.png"
+								type="url"
+								value={directUrlValue}
+								onChange={(e) => setDirectUrl(e.target.value)}
+								onKeyDown={(e) => {
+									if (e.key === "Enter") {
+										e.preventDefault();
+										handleDirectUrlApply();
+									}
+								}}
+							/>
+						</div>
+						<Button
+							disabled={busy || !directUrlValue.trim()}
+							onClick={handleDirectUrlApply}
+							size="sm"
+							type="button"
+						>
+							Apply
+						</Button>
+					</div>
 				) : null}
 			</div>
 		</FormItem>

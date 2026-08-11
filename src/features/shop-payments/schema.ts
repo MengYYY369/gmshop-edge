@@ -59,6 +59,12 @@ export const paymentChannelInputSchema = z
 		wechatApiV3Key: z.string().max(64).optional(),
 		wechatPlatformSerialNumber: z.string().trim().max(128).optional(),
 		wechatPlatformPublicKeyPem: z.string().max(8_192).optional(),
+		paypalClientId: z.string().trim().max(256).optional(),
+		paypalClientSecret: z.string().max(512).optional(),
+		paypalWebhookId: z.string().trim().max(256).optional(),
+		paypalIsSandbox: z
+			.union([z.boolean(), z.enum(["sandbox", "live"])])
+			.optional(),
 	})
 	.superRefine((value, context) => {
 		if (Boolean(value.defaultToken) !== Boolean(value.defaultNetwork))

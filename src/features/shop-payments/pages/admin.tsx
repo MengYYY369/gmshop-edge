@@ -227,7 +227,6 @@ export function PaymentConfigurationsPage() {
 								</DropdownMenuItem>
 								<DropdownMenuItem
 									variant="destructive"
-									disabled={row.original.attemptCount > 0}
 									onClick={() => setDeleting(row.original)}
 								>
 									<Trash2 />
@@ -624,7 +623,6 @@ function channelFormSchema(editing: boolean) {
 			hidden: (values: Record<string, unknown>) =>
 				values.type !== "gmpay" &&
 				values.type !== "epay" &&
-				values.type !== "epay_v1" &&
 				values.type !== "cryptomus",
 		},
 		{
@@ -634,7 +632,6 @@ function channelFormSchema(editing: boolean) {
 			hidden: (values: Record<string, unknown>) =>
 				values.type !== "gmpay" &&
 				values.type !== "epay" &&
-				values.type !== "epay_v1" &&
 				values.type !== "cryptomus",
 		},
 		{

@@ -48,7 +48,11 @@ export function paymentProviderDefaultCurrency(
 	storeCurrency: string,
 ) {
 	const family = paymentProviderFamily(provider);
-	return family === "alipay" || family === "wechat" ? "CNY" : storeCurrency;
+	return family === "alipay" ||
+		family === "epay_v1" ||
+		family === "wechat"
+		? "CNY"
+		: storeCurrency;
 }
 
 export type CreatePaymentInput = {
