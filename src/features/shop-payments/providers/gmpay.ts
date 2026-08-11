@@ -73,6 +73,8 @@ export const gmpayPaymentProvider: PaymentProviderAdapter = {
 			redirect_url: input.successUrl,
 			name: input.description,
 		};
+		// GMpay: token 和 network 必须同时提供才发送，否则让付款人通过统一收银台选择
+		// GMpay文档说明："同时省略 token 与 network 会创建可选择支付方式的 pending 订单"
 		if (input.defaultToken && input.defaultNetwork) {
 			params.token = input.defaultToken;
 			params.network = input.defaultNetwork;
