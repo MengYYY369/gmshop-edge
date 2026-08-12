@@ -5,7 +5,6 @@ import { sha256Hex } from "#/features/shop-payments/signature";
 import { DomainError } from "#/lib/domain-error";
 import { minorToDecimal } from "#/lib/units";
 import {
-	checkEpusdtHealth,
 	epusdtMerchantOrderId,
 	epusdtUrl,
 	manualRefundMethods,
@@ -179,6 +178,10 @@ export const gmpayPaymentProvider: PaymentProviderAdapter = {
 		const response = await fetcher(epusdtUrl(credential.baseUrl, "/healthz"), {
 			signal: AbortSignal.timeout(10_000),
 		});
-		if (!response.ok) await checkEpusdtHealth(credential, fetcher);
+		if (!response.ok) throw new DomainError(
+			"payment_provider_unavailable",
+			502,
+			`GMpay healthz returned ${response.status}`,
+		);
 	},
 };
