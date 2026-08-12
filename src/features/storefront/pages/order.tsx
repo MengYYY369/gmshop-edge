@@ -12,7 +12,7 @@ import {
 	QrCode,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ModalForm } from "#/components/pro/form";
 import { statusLabel } from "#/components/status-badge";
@@ -42,6 +42,7 @@ import {
 	getStoreOrderFn,
 	retryStorePaymentFn,
 } from "#/features/storefront/server/functions";
+import { syncPaymentStatusFn } from "#/features/storefront/server/payment-sync-fn";
 import { formatDateTime, formatMinorAmountWithSymbol } from "#/lib/format";
 import { m } from "#/paraglide/messages";
 
@@ -98,6 +99,23 @@ export function StorefrontOrderPage({
 		},
 		onError: () => toast.error(m.store_after_sale_failed()),
 	});
+	const hasAttemptedSyncRef = useRef(false);
+	useEffect(() => {
+		if (hasAttemptedSyncRef.current) return;
+		if (!order.data) return;
+		if (order.data.status !== "pending_payment") return;
+		const latestPayment = order.data.payments[0];
+		if (!latestPayment || latestPayment.status !== "pending") return;
+		hasAttemptedSyncRef.current = true;
+		void syncPaymentStatusFn({
+			data: {
+				orderNumber,
+				email: accountOrder ? undefined : guestEmail,
+			},
+		}).then((result) => {
+			if (result.synced) void order.refetch();
+		});
+	}, [order.data, orderNumber, guestEmail, accountOrder]);
 	const retryPayment = useMutation({
 		mutationFn: retryStorePaymentFn,
 		onSuccess: async () => {
