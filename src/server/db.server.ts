@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import type { Service } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "#/db/schema";
 
@@ -8,6 +9,7 @@ type CloudflareEnv = {
 	CACHE?: KVNamespace;
 	COMMERCE_QUEUE?: Queue;
 	EMAIL?: SendEmail;
+	GMPAY?: Service;
 };
 
 export function getCloudflareEnv(_request?: Request) {

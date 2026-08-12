@@ -47,8 +47,15 @@ export async function handleShopPaymentWebhookRequest(
 				{ code: error.code },
 				{ status: error.status, headers: { "Cache-Control": "no-store" } },
 			);
+		const errorMessage =
+			error instanceof Error ? error.message : String(error);
+		const errorStack = error instanceof Error ? error.stack : undefined;
+		console.error("PAYPEL_WEBHOOK_UNEXPECTED_ERROR", JSON.stringify({
+			message: errorMessage,
+			stack: errorStack?.split("\n").slice(0, 5).join("\n"),
+		}));
 		return Response.json(
-			{ code: "payment_webhook_failed" },
+			{ code: "payment_webhook_failed", errorMessage },
 			{ status: 500, headers: { "Cache-Control": "no-store" } },
 		);
 	}

@@ -35,5 +35,11 @@
 			}
 		]
 	},
-	"triggers": { "crons": ["* * * * *"] }
+	"triggers": { "crons": ["* * * * *"] },
+	"services": [
+		{
+			"binding": "GMPAY",
+			"service": "gmpay-edge"
+		}
+	]
 }

@@ -138,11 +138,40 @@ export async function checkEpusdtHealth(
 	credential: EpusdtCredential,
 	fetcher: typeof fetch,
 ) {
-	const response = await fetcher(
-		epusdtUrl(credential.baseUrl, "/payments/gmpay/v1/config"),
-		{ signal: AbortSignal.timeout(10_000) },
-	);
-	healthResponseSchema.parse(await parseEpusdtJson(response));
+	const endpoints = [
+		"/payments/gmpay/v1/config",
+		"/api.php",
+		"/mapi.php",
+	];
+	let lastError: unknown;
+	const debugInfo: Array<{url: string; status?: number; ok?: boolean; error?: string}> = [];
+	for (const ep of endpoints) {
+		const url = epusdtUrl(credential.baseUrl, ep);
+		try {
+			const init: RequestInit = {
+				method: ep === "/mapi.php" ? "POST" : "GET",
+				headers: {
+					"Accept": "application/json, text/plain, */*",
+				},
+			};
+			if (ep === "/mapi.php") {
+				init.headers = { ...init.headers, "Content-Type": "application/x-www-form-urlencoded" };
+				init.body = `pid=${encodeURIComponent(credential.pid)}`;
+			}
+			const response = await fetcher(url, init);
+			debugInfo.push({ url, status: response.status, ok: response.ok });
+			if (response.ok) {
+				await response.json().catch(() => null);
+				return;
+			}
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : String(err);
+			debugInfo.push({ url, error: errMsg });
+			lastError = err;
+		}
+	}
+	if (lastError) throw lastError;
+	throw new DomainError("payment_provider_unavailable", 502, `GMpay unreachable: ${JSON.stringify(debugInfo)}`);
 }
 
 export const manualRefundMethods: Pick<
