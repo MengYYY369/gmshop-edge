@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { z } from "zod";
 import type { PaymentProviderAdapter } from "#/features/shop-payments/provider";
 import { gmpayCredentialSchema } from "#/features/shop-payments/provider";
@@ -172,7 +173,7 @@ export const gmpayPaymentProvider: PaymentProviderAdapter = {
 			payloadDigest: await sha256Hex(body),
 		};
 	},
-	...manualRefundMethods,
+		...manualRefundMethods,
 	async checkHealth(rawCredential, fetcher = fetch) {
 		const credential = gmpayCredentialSchema.parse(rawCredential);
 		const response = await fetcher(epusdtUrl(credential.baseUrl, "/healthz"), {
@@ -185,3 +186,4 @@ export const gmpayPaymentProvider: PaymentProviderAdapter = {
 		);
 	},
 };
+
