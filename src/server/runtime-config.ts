@@ -121,13 +121,8 @@ function generateRuntimeSecret() {
 function parseString(value: string) {
 	try {
 		const parsed: unknown = JSON.parse(value);
-		// JSON-wrapped plain string (e.g. '"secret"') → unwrap to plain string.
-		if (typeof parsed === "string") return parsed;
-		// Structured JSON value (e.g. keyring object {"version":1,...}) → preserve
-		// original serialization so downstream parseKeyring() can consume it.
-		return value;
+		return typeof parsed === "string" ? parsed : "";
 	} catch {
-		// Not valid JSON (legacy raw secret) → use as-is.
-		return value;
+		return "";
 	}
 }

@@ -935,11 +935,9 @@ async function loadPaymentContext(
 	providerPaymentId: string,
 	merchantOrderId?: string | null,
 ) {
-	// 匹配逻辑（优先级由高到低）：
-	// 1. pa.id = merchantOrderId（PayPal 的 resource.custom_id = 我们的 attemptId）
-	// 2. pa.provider_payment_id = provider_payment_id（PayPal capture 的 order_id）
-	// 3. pa.provider_payment_id = provider_payment_id 原始值
-	const matchId = merchantOrderId ?? providerPaymentId;
+	// 先用 provider_payment_id 精确匹配；
+	// 对于 PayPal，webhook 的 resource.id 是 capture ID，不等于 order ID，
+	// 此时需要用 merchantOrderId（= PayPal order ID）做回退匹配。
 	const context = await db
 		.prepare(
 			`SELECT pa.id AS attempt_id, pa.status AS attempt_status, pa.amount_minor,
@@ -956,14 +954,15 @@ async function loadPaymentContext(
 			 LEFT JOIN users topup_user ON topup_user.id = topup.user_id
 			 JOIN payment_channels pc ON pc.id = pa.channel_id
 			 WHERE pa.channel_id = ? AND (
-			  pa.id = ? OR pa.provider_payment_id = ? OR pa.provider_payment_id = ?
-			 ) ORDER BY pa.updated_at DESC, pa.id DESC LIMIT 1`,
+			  pa.provider_payment_id = ?
+			  OR (? IS NOT NULL AND pa.provider_payment_id = ?)
+			 ) LIMIT 1`,
 		)
 		.bind(
 			channelId,
-			matchId,
-			matchId,
 			providerPaymentId,
+			merchantOrderId ?? null,
+			merchantOrderId ?? null,
 		)
 		.first<PaymentContext>();
 	if (!context)
@@ -1001,27 +1000,14 @@ function validateEventMoney(
 		context.order_number,
 		epusdtMerchantOrderId(context.attempt_id),
 	]);
-	// 没有任何金额/货币信息时，信任已签名的 webhook（例如 PayPal
-	// CHECKOUT.ORDER.APPROVED 在某些场景下不携带金额字段）。有金额时才严格校验。
-	const hasAmountInfo =
-		event.amountMinor != null ||
-		decimalMinor != null ||
-		event.currency != null;
 	if (
-		hasAmountInfo &&
-		((event.amountMinor != null && event.amountMinor !== context.amount_minor) ||
-			(decimalMinor != null && decimalMinor !== context.amount_minor) ||
-			(event.currency != null &&
-				event.currency.toUpperCase() !== context.currency.toUpperCase()))
-	)
-		throw new DomainError(
-			"payment_amount_mismatch",
-			400,
-			"Payment amount mismatch",
-		);
-	if (
-		event.merchantOrderId != null &&
-		!expectedMerchantOrderIds.has(event.merchantOrderId)
+		(event.amountMinor == null && decimalMinor == null) ||
+		(event.amountMinor != null && event.amountMinor !== context.amount_minor) ||
+		(decimalMinor != null && decimalMinor !== context.amount_minor) ||
+		(event.currency != null &&
+			event.currency.toUpperCase() !== context.currency.toUpperCase()) ||
+		(event.merchantOrderId != null &&
+			!expectedMerchantOrderIds.has(event.merchantOrderId))
 	)
 		throw new DomainError(
 			"payment_amount_mismatch",

@@ -63,70 +63,14 @@ const webhookEventSchema = z.object({
 	event_type: z.string(),
 	resource: z.object({
 		id: z.string(),
-		status: z.string().optional(),
 		amount: z
 			.object({
 				currency_code: z.string(),
 				value: z.string(),
 			})
 			.optional(),
-		custom_id: z.string().optional(),
-		supplementary_data: z
-			.object({
-				related_ids: z
-					.object({
-						order_id: z.string().optional(),
-					})
-					.optional(),
-			})
-			.optional(),
-		// PayPal CAPTURE.COMPLETED webhook 的 purchase_units 通常只含
-		// custom_id + amount，不一定有 payments（payments 出现在订单查询 API 响应里）。
-		purchase_units: z
-			.array(
-				z
-					.object({
-						custom_id: z.string().optional(),
-						amount: z
-							.object({
-								currency_code: z.string(),
-								value: z.string(),
-							})
-							.optional(),
-						payments: z
-							.object({
-								captures: z
-									.array(
-										z.object({
-											id: z.string().optional(),
-											status: z.string().optional(),
-											amount: z
-												.object({
-													currency_code: z.string(),
-													value: z.string(),
-												})
-												.optional(),
-										}),
-									)
-									.optional(),
-							})
-							.passthrough()
-							.optional(),
-					})
-					.passthrough(),
-			)
-			.optional(),
-		final_capture: z.boolean().optional(),
-		links: z.array(z.object({}).passthrough()).optional(),
-	})
-		.passthrough(),
-	event_version: z.string().optional(),
-	resource_type: z.string().optional(),
-	summary: z.string().optional(),
-	create_time: z.string().optional(),
-	update_time: z.string().optional(),
-})
-	.passthrough();
+	}),
+});
 
 const webhookVerificationSchema = z.object({
 	verification_status: z.literal("SUCCESS"),
@@ -281,7 +225,7 @@ export const paypalPaymentProvider: PaymentProviderAdapter = {
 			currency: amount?.currency_code?.toUpperCase() ?? null,
 		};
 	},
-	async parseWebhook(request: Request, rawCredential: unknown, fetcher = fetch) {
+	async parseWebhook(request, rawCredential) {
 		const credential = paypalCredentialSchema.parse(rawCredential);
 		if (request.method !== "POST")
 			throw new DomainError(
@@ -290,7 +234,8 @@ export const paypalPaymentProvider: PaymentProviderAdapter = {
 				"Invalid payment callback method",
 			);
 		const body = await readPaymentWebhookText(request);
-		const event = webhookEventSchema.parse(JSON.parse(body));
+		const rawEvent = JSON.parse(body);
+		const event = webhookEventSchema.parse(rawEvent);
 		const transmissionId = request.headers.get("paypal-transmission-id") ?? "";
 		const certUrl = request.headers.get("paypal-cert-url") ?? "";
 		const authAlgo = request.headers.get("paypal-auth-algo") ?? "";
@@ -298,7 +243,7 @@ export const paypalPaymentProvider: PaymentProviderAdapter = {
 			request.headers.get("paypal-transmission-sig") ?? "";
 		const transmissionTime =
 			request.headers.get("paypal-transmission-time") ?? "";
-		const accessToken = await getAccessToken(credential, fetcher);
+		const accessToken = await getAccessToken(credential, fetch);
 		const verifyResponse = await paypalRequest(
 			accessToken,
 			"/v1/notifications/verify-webhook-signature",
@@ -312,7 +257,7 @@ export const paypalPaymentProvider: PaymentProviderAdapter = {
 					transmission_sig: transmissionSig,
 					transmission_time: transmissionTime,
 					webhook_id: credential.webhookId,
-					webhook_event: JSON.parse(body),
+					webhook_event: rawEvent,
 				},
 				fetcher,
 			},
@@ -326,40 +271,23 @@ export const paypalPaymentProvider: PaymentProviderAdapter = {
 				401,
 				"Invalid PayPal webhook signature",
 			);
-		// PayPal 在买家 approve 时还可能发 CHECKOUT.ORDER.APPROVED /
-		// CHECKOUT.ORDER.COMPLETED 等 event_type。intent=CAPTURE 场景下这些事件
-		// 同样代表支付完成（PayPal 在 approve 后立即自动捕获）。
-		const succeeded =
-			event.event_type === "PAYMENT.CAPTURE.COMPLETED" ||
-			event.event_type === "CHECKOUT.ORDER.APPROVED" ||
-			event.event_type === "CHECKOUT.ORDER.COMPLETED";
+		const succeeded = event.event_type === "PAYMENT.CAPTURE.COMPLETED";
 		const failed =
 			event.event_type === "PAYMENT.CAPTURE.DENIED" ||
-			event.event_type === "PAYMENT.CAPTURE.REVERSED" ||
-			event.event_type === "PAYMENT.CAPTURE.REFUNDED";
-		// CHECKOUT.ORDER.APPROVED 未必在 resource 顶层有 amount；
-		// 优先顶层 → captures → purchase_units[0]（pay-as-you-go 场景）。
-		const amount =
-			event.resource?.amount ??
-			event.resource.purchase_units?.[0]?.payments?.captures?.[0]?.amount ??
-			event.resource.purchase_units?.[0]?.amount ??
-			undefined;
+			event.event_type === "PAYMENT.CAPTURE.REVERSED";
+		const amount = event.resource?.amount;
+		// PayPal PAYMENT.CAPTURE.COMPLETED 的 resource.id 是 capture ID，
+		// 而非 order ID。我们需要从 supplementary_data.related_ids.order_id 获取原始订单 ID，
+		// 才能匹配到我们存储的 providerPaymentId（= order ID）。
 		const captureId = event.resource.id;
-		// 尝试多种方式获取我们的 attemptId：优先 resource.custom_id，
-		// 其次 purchase_units[0].custom_id。
 		const orderIdFromCapture =
-			event.resource.supplementary_data?.related_ids?.order_id ?? undefined;
-		const customId =
-			event.resource.custom_id ??
-			event.resource.purchase_units?.[0]?.custom_id ??
-			undefined;
+			(event.resource as { supplementary_data?: { related_ids?: { order_id?: string } } })
+				?.supplementary_data?.related_ids?.order_id ?? null;
 		return {
 			providerEventId: event.id,
-			// capture ID 作为 providerPaymentId；merchantOrderId 优先用
-			// custom_id（=我们的 attemptId），其次 order_id（= PayPal order ID），
-			// 最后兜底 capture ID。
+			// 用 capture ID 作为主 ID，order_id 作为 merchantOrderId 用于匹配
 			providerPaymentId: captureId,
-			merchantOrderId: customId ?? orderIdFromCapture ?? captureId,
+			merchantOrderId: orderIdFromCapture,
 			type: succeeded
 				? "payment_succeeded"
 				: failed

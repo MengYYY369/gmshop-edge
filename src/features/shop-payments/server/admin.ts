@@ -32,10 +32,7 @@ import {
 	deleteConfigurationLogo,
 	putConfigurationLogo,
 } from "#/server/configuration-logo";
-import {
-	getAdminServerContext,
-	getAdminRuntimeServerContext,
-} from "#/server/context";
+import { getAdminServerContext } from "#/server/context";
 import { getCloudflareEnv } from "#/server/db.server";
 import { loadRuntimeConfig } from "#/server/runtime-config";
 
@@ -289,10 +286,9 @@ export const testPaymentChannelFn = createServerFn({ method: "POST" })
 		paymentChannelIdSchema.parse(input),
 	)
 	.handler(async ({ data }) => {
-		const { currentUser, db, request, env } =
-			await getAdminRuntimeServerContext(
-				systemPermission("payments", "update"),
-			);
+		const { currentUser, db, request } = await getAdminServerContext(
+			systemPermission("payments", "update"),
+		);
 		const channel = await db.$client
 			.prepare(
 				"SELECT provider, credential_encrypted FROM payment_channels WHERE id = ? LIMIT 1",
@@ -314,7 +310,6 @@ export const testPaymentChannelFn = createServerFn({ method: "POST" })
 			);
 		const now = Date.now();
 		let status: "healthy" | "unhealthy" = "healthy";
-		let errorMessage: string | null = null;
 		try {
 			const credential = JSON.parse(
 				await decryptSecret(
@@ -323,22 +318,9 @@ export const testPaymentChannelFn = createServerFn({ method: "POST" })
 					"payment-credential",
 				),
 			) as unknown;
-			// Use GMpay service binding for worker-to-worker calls
-			let fetcher: typeof fetch = fetch;
-			if (channel.provider === "gmpay" && env?.GMPAY) {
-				const gmpayService = env.GMPAY;
-				fetcher = (url: string | URL | Request, init?: RequestInit) => {
-					const urlStr = typeof url === "string" ? url : url.toString();
-					return gmpayService.fetch(urlStr, init);
-				};
-			}
-			await getPaymentProvider(channel.provider).checkHealth(
-				credential,
-				fetcher as typeof fetch,
-			);
-		} catch (err) {
+			await getPaymentProvider(channel.provider).checkHealth(credential);
+		} catch {
 			status = "unhealthy";
-			errorMessage = err instanceof Error ? err.message : String(err);
 		}
 		await db.$client.batch([
 			db.$client
@@ -350,10 +332,10 @@ export const testPaymentChannelFn = createServerFn({ method: "POST" })
 				action: "payment_channel.health_checked",
 				targetType: "payment_channel",
 				targetId: data.id,
-				after: { status, error: errorMessage },
+				after: { status },
 			}),
 		]);
-		return { id: data.id, status, error: errorMessage };
+		return { id: data.id, status };
 	});
 
 export const uploadPaymentChannelLogoFn = createServerFn({ method: "POST" })
