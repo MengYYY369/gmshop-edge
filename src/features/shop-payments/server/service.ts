@@ -911,7 +911,7 @@ export async function completeWalletStoreOrder(
 	return { duplicate: false, status: "paid" };
 }
 
-export async function loadCredential(db: D1Database, encrypted: string | null) {
+async function loadCredential(db: D1Database, encrypted: string | null) {
 	if (!encrypted) return {};
 	const runtime = await loadRuntimeConfig(db);
 	if (!runtime.commerceSecret)

@@ -3,7 +3,6 @@ import { publishPendingDeliveries } from "#/features/fulfillment/server/outbox";
 import { publishPendingNotifications } from "#/features/notifications/server/delivery";
 import { fanOutPendingCommerceNotifications } from "#/features/notifications/server/fanout";
 import { expireStoreOrders } from "#/features/shop-orders/server/expiration";
-import { pollPendingPayPalPayments } from "#/features/shop-payments/server/paypal-poll";
 import { publishPendingRefunds } from "#/features/shop-payments/server/refunds";
 import { publishPendingSupplierOrders } from "#/features/suppliers/server/outbox";
 import { runTelegramMaintenance } from "#/features/telegram/server/maintenance";
@@ -27,7 +26,6 @@ export async function runScheduledCommerceWork(
 	scheduledAt: number,
 ) {
 	const publishBatchSize = await loadPublishBatchSize(env.DB);
-	const paypal = await pollPendingPayPalPayments(env.DB);
 	const expired = await expireStoreOrders(env.DB, scheduledAt);
 	const deliveries = await publishPendingDeliveries(
 		env.DB,
@@ -61,7 +59,6 @@ export async function runScheduledCommerceWork(
 	const telegram = await runTelegramMaintenance(env.DB, scheduledAt);
 	const maintenance = await runMaintenance(env, cron, undefined, scheduledAt);
 	return {
-		paypal,
 		expired,
 		deliveries,
 		suppliers,
