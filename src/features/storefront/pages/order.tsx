@@ -12,7 +12,7 @@ import {
 	QrCode,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import { type FormEvent, type ReactNode, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ModalForm } from "#/components/pro/form";
 import { statusLabel } from "#/components/status-badge";
@@ -41,7 +41,6 @@ import {
 import {
 	getStoreOrderFn,
 	retryStorePaymentFn,
-	syncPaymentStatusFn,
 } from "#/features/storefront/server/functions";
 import { formatDateTime, formatMinorAmountWithSymbol } from "#/lib/format";
 import { m } from "#/paraglide/messages";
@@ -99,14 +98,6 @@ export function StorefrontOrderPage({
 		},
 		onError: () => toast.error(m.store_after_sale_failed()),
 	});
-	const syncPayment = useMutation({
-		mutationFn: syncPaymentStatusFn,
-		onSuccess: async (result) => {
-			if (result.synced) {
-				await order.refetch();
-			}
-		},
-	});
 	const retryPayment = useMutation({
 		mutationFn: retryStorePaymentFn,
 		onSuccess: async () => {
@@ -126,27 +117,6 @@ export function StorefrontOrderPage({
 			else toast.error(m.store_payment_retry_failed());
 		},
 	});
-	// 页面加载后立即主动同步一次支付状态（解决 PayPal webhook 延迟问题）
-	const hasAttemptSyncRef = useRef(false);
-	useEffect(() => {
-		if (
-			!accountOrder &&
-			!guestAccessReady
-		)
-			return;
-		if (!order.data) return;
-		if (order.data.status !== "pending_payment") return;
-		if (!latestPayment || latestPayment.status !== "pending") return;
-		if (hasAttemptSyncRef.current) return;
-		hasAttemptSyncRef.current = true;
-		syncPayment.mutate({
-			data: {
-				orderNumber,
-				email: accountOrder ? undefined : guestEmail,
-			},
-		});
-	}, [accountOrder, guestAccessReady, order.data, latestPayment, orderNumber, guestEmail, syncPayment]);
-
 	if (!accountOrder && !guestAccessReady) return <OrderLoadingSkeleton />;
 	if (!order.data) {
 		if (guestEmail && order.isPending) return <OrderLoadingSkeleton />;

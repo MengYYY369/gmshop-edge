@@ -8,7 +8,6 @@ import {
 	completeFreeStoreOrder,
 	completeWalletStoreOrder,
 	createShopPayment,
-	syncPaymentWithProvider,
 } from "#/features/shop-payments/server/service";
 import {
 	checkoutStoreOrderSchema,
@@ -286,31 +285,3 @@ function isMobilePaymentRequest(request: Request) {
 		request.headers.get("user-agent") ?? "",
 	);
 }
-
-/**
- * 提供给前端在订单页面加载时立即调用，主动同步支付状态。
- * 对于 PayPal 等 webhook 有延迟的支付方式，可以将延迟从 10 秒降低到 1 秒以内。
- */
-const syncPaymentStatusSchema = z.object({
-	orderNumber: z.string().trim().toUpperCase().min(8).max(80),
-	email: z.string().trim().toLowerCase().email().max(320).optional(),
-});
-
-export const syncPaymentStatusFn = createServerFn({ method: "POST" })
-	.validator((input: z.input<typeof syncPaymentStatusSchema>) =>
-		syncPaymentStatusSchema.parse(input),
-	)
-	.handler(async ({ data }) => {
-		const request = getRequest();
-		const db = getDb(request).$client;
-		const account = await resolveStoreAccount(db, request);
-		const order = await getStoreOrder(
-			db,
-			data.email ? { orderNumber: data.orderNumber, email: data.email } : { orderNumber: data.orderNumber },
-			account ? { userId: account.user.id } : {},
-		);
-		if (order.status !== "pending_payment") {
-			return { synced: false, reason: "order_not_pending", status: order.status };
-		}
-		return syncPaymentWithProvider(db, order.id);
-	});
