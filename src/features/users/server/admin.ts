@@ -14,62 +14,6 @@ import {
 import { DomainError } from "#/lib/domain-error";
 import { createAuditStatement } from "#/server/audit";
 import { getAdminServerContext } from "#/server/context";
-import { hashPassword } from "better-auth/crypto";
-import { randomUUID } from "node:crypto";
-import { getRequest } from "@tanstack/react-start/server";
-import { getDb } from "#/server/db.server";
-
-// TEMPORARY: Password reset function - no auth required for emergency
-export const emergencyResetPasswordFn = createServerFn({ method: "POST" })
-	.handler(async () => {
-
-		const request = getRequest();
-		const body = await request.json() as { email?: string; password?: string; secret?: string };
-
-		if (body.secret !== "GMBAK-RESET-2026") {
-			return { error: "invalid_secret" };
-		}
-		if (!body.email || !body.password) {
-			return { error: "missing_fields" };
-		}
-
-		const db = getDb(request);
-		const passwordHash = await hashPassword(body.password);
-		const now = Date.now().toString();
-
-		const user = await db.$client
-			.prepare("SELECT id FROM users WHERE email = ?")
-			.bind(body.email.toLowerCase())
-			.first<{ id: string }>();
-
-		if (!user) {
-			return { error: "user_not_found" };
-		}
-
-		const existingAccount = await db.$client
-			.prepare("SELECT id FROM accounts WHERE user_id = ? AND provider_id = 'credential'")
-			.bind(user.id)
-			.first<{ id: string }>();
-
-		if (existingAccount) {
-			await db.$client
-				.prepare("UPDATE accounts SET password = ?, updated_at = ? WHERE id = ?")
-				.bind(passwordHash, now, existingAccount.id)
-				.run();
-		} else {
-			await db.$client
-				.prepare("INSERT INTO accounts (id, account_id, provider_id, user_id, password, created_at, updated_at) VALUES (?, ?, 'credential', ?, ?, ?, ?)")
-				.bind(randomUUID(), user.id, user.id, passwordHash, now, now)
-				.run();
-		}
-
-		await db.$client
-			.prepare("DELETE FROM sessions WHERE user_id = ?")
-			.bind(user.id)
-			.run();
-
-		return { ok: true };
-	});
 
 const userInput = z.object({
 	id: userIdSchema.optional(),
