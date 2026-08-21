@@ -41,7 +41,24 @@ export function setSystemDefaultLocale(
 ) {
 	const headers = new Headers(request.headers);
 	headers.set(systemDefaultLocaleHeader, locale);
-	const localizedRequest = new Request(request, { headers });
+	let localizedRequest: Request;
+	if (Object.getPrototypeOf(request) === Request.prototype) {
+		localizedRequest = new Request(request, { headers });
+	} else {
+		// Nitro may provide a Request from a different JavaScript realm. Undici
+		// cannot clone that object directly, so rebuild it from public fields.
+		const init: RequestInit & { duplex?: "half" } = {
+			method: request.method,
+			headers,
+			redirect: request.redirect,
+			signal: request.signal,
+		};
+		if (request.method !== "GET" && request.method !== "HEAD") {
+			init.body = request.body;
+			init.duplex = "half";
+		}
+		localizedRequest = new Request(request.url, init);
+	}
 	systemDefaultLocales.set(localizedRequest, locale);
 	return localizedRequest;
 }

@@ -5,20 +5,21 @@
 [简体中文](README.zh-CN.md) · English
 
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-3DA639.svg?style=flat-square)](LICENSE)
-[![Runtime: Cloudflare Workers](https://img.shields.io/badge/runtime-Cloudflare%20Workers-F38020.svg?style=flat-square&logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
+[![Runtimes: Workers + Node](https://img.shields.io/badge/runtimes-Workers%20%2B%20Node-F38020.svg?style=flat-square)](#architecture)
 [![Bun](https://img.shields.io/badge/toolchain-Bun-000000.svg?style=flat-square&logo=bun&logoColor=white)](https://bun.sh/)
 [![TypeScript](https://img.shields.io/badge/language-TypeScript-3178C6.svg?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB.svg?style=flat-square&logo=react&logoColor=white)](https://react.dev/)
 [![TanStack Start](https://img.shields.io/badge/TanStack-Start-FF4154.svg?style=flat-square&logo=reactquery&logoColor=white)](https://tanstack.com/start)
-[![Cloudflare D1](https://img.shields.io/badge/data-Cloudflare%20D1-F38020.svg?style=flat-square&logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/d1/)
+[![Data: D1 + SQLite](https://img.shields.io/badge/data-D1%20%2B%20SQLite-3DA639.svg?style=flat-square)](#architecture)
 [![Better Auth](https://img.shields.io/badge/auth-Better%20Auth-000000.svg?style=flat-square)](https://www.better-auth.com/)
+[![Vitest](https://img.shields.io/badge/tests-Vitest-6E9F18.svg?style=flat-square&logo=vitest&logoColor=white)](https://vitest.dev/)
 [![@visulima/email](https://img.shields.io/badge/email-%40visulima%2Femail-2563EB.svg?style=flat-square)](https://visulima.com/packages/email)
 [![Locales: 2](https://img.shields.io/badge/locales-2-7C3AED.svg?style=flat-square)](project.inlang/settings.json)
 
 GMShop Edge is a self-hosted, single-deployment, single-tenant digital-goods
-storefront for Cloudflare Workers. One deployment provides a responsive public
-shop, customer accounts, checkout and fulfillment, and a permission-driven
-administration console.
+storefront for Cloudflare Workers or a Node/Nitro Docker container. One
+deployment provides a responsive public shop, customer accounts, checkout and
+fulfillment, and a permission-driven administration console.
 
 > [!IMPORTANT]
 > GMShop Edge is under active development. A built-in adapter means that its
@@ -79,7 +80,7 @@ flowchart LR
     Customer["Customer"]
     Operator["Operator"]
 
-    subgraph Worker["Single GMShop Edge Worker"]
+    subgraph Runtime["Single GMShop Edge deployment"]
         direction LR
         Storefront["Storefront · account"]
         Admin["Permission-driven admin"]
@@ -96,6 +97,7 @@ flowchart LR
     end
 
     Cloudflare["Cloudflare services<br/>D1 · KV · R2 · Queues · Cron"]
+    Node["Node services<br/>SQLite · local objects · durable queue · scheduler"]
     Providers["Business providers<br/>Checkout · email · automation"]
     Upstreams["Upstream suppliers<br/>ACG · Dujiao Next"]
 
@@ -104,21 +106,24 @@ flowchart LR
     Commerce <--> Cloudflare
     Suppliers <--> Cloudflare
     Delivery <--> Cloudflare
+    Commerce <--> Node
+    Suppliers <--> Node
+    Delivery <--> Node
     Delivery --> Providers
     Suppliers <--> Upstreams
 ```
 
-One Worker owns the public, customer, and administrative surfaces. D1 is
-authoritative for identity, RBAC, catalog, money, orders, inventory,
-entitlements, supplier accounts, product bindings, purchase orders, jobs,
-replay protection, rate limits, outbox, and audit. KV holds only validated,
-versioned, bounded upstream-catalog snapshots and read caches. R2 holds private
-media, downloads, artifacts, and exports. Queues and Cron move catalog
-synchronization, supplier purchasing and reconciliation, fulfillment, retries,
-retention, and key rotation outside synchronous requests. The supplier module
-synchronizes one catalog per provider and API source, automatically selects
-from the eligible account pool for that source, and passes upstream content
-through the unified delivery-record pipeline.
+One Worker or Node container owns the public, customer, and administrative
+surfaces. Each deployment has one authoritative database: D1 on Workers or
+`$GMSHOP_DATA_DIR/gmshop.sqlite` on Node. Workers use KV, private R2, Queues,
+and Cron; Node provides the same runtime interfaces with a bounded memory
+cache, hashed local private objects, a durable SQLite queue, and an in-process
+scheduler. Background work keeps catalog synchronization, supplier purchasing
+and reconciliation, fulfillment, retries, retention, and key rotation outside
+synchronous requests. The supplier module synchronizes one catalog per
+provider and API source, automatically selects from the eligible account pool
+for that source, and passes upstream content through the unified delivery-record
+pipeline.
 
 Routes remain thin; feature pages, schemas, server functions, and domain
 behavior live in `src/features`, cross-domain runtime plumbing lives in
@@ -135,9 +140,11 @@ Triggers.
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/GMWalletApp/gmshop-edge)
 
-The guided flow creates the Worker project from this repository. After it
-finishes, open `/install`, verify the generated resource bindings, and complete
-the production checklist before accepting orders.
+The guided flow requires a public source repository. Use `bun run build` as the
+Build command and `wrangler deploy` as the Deploy command. The remote build
+creates or reuses the named resources, applies D1 migrations, and generates the
+deployable Worker configuration. After it finishes, open `/install` and create
+the first root administrator.
 
 ### Deploy with Wrangler
 
@@ -149,15 +156,113 @@ bunx wrangler login
 bun run deploy
 ```
 
-The `predeploy` hook creates or reuses the named D1, R2, and Queue resources,
-applies the D1 baseline through `DB`, and builds the Worker. The build script
-does not write account-specific IDs to `wrangler.jsonc`. Configure the `CACHE`
-KV namespace and, when used, the `EMAIL` binding in the Cloudflare deployment
-environment.
+The `predeploy` hook creates or reuses the named D1, KV, R2, Commerce Queue, and
+dead-letter Queue resources, applies the D1 baseline to the named database, and
+builds the Worker. It injects resolved D1/KV IDs only into the generated
+`dist/server/wrangler.json`; account-specific IDs are never written to the
+portable `wrangler.jsonc`. Ordinary `bun run build` remains local and does not
+contact Cloudflare.
 
 After deployment, open `/install` on the Worker URL to initialize the instance.
 Provider secrets are entered through the administration console and must never
 be committed.
+
+The deployment declares these bindings:
+
+| Binding | Cloudflare product | Purpose |
+| --- | --- | --- |
+| `DB` | D1 | Authoritative identity, catalog, commerce, authorization, and audit data |
+| `CACHE` | KV | Validated read caches and upstream-catalog snapshots |
+| `FILES` | R2 | Private media, downloads, automation artifacts, and exports |
+| `COMMERCE_QUEUE` | Queues | Asynchronous fulfillment, supplier, notification, and maintenance work |
+| `EMAIL` | Send Email | Optional native Cloudflare email delivery |
+
+`bun run build` remains a local Workers build and never discovers or modifies
+remote resources. `bun run predeploy` performs remote preparation, migrations,
+the Workers build, and generated D1/KV binding injection.
+
+## Deploy with Node and Docker
+
+The public [GHCR package](https://github.com/orgs/GMWalletApp/packages/container/package/gmshop-edge)
+supports `linux/amd64` and `linux/arm64`; no registry login is required.
+
+Choose the image tag that fits the deployment:
+
+| Tag | Use |
+| --- | --- |
+| `latest` | Recommended stable release |
+| `1.0.0` | Fixed release that will not change unexpectedly |
+
+### Docker Compose (recommended)
+
+The repository includes a ready-to-use `compose.yml`:
+
+```yaml
+services:
+  gmshop-edge:
+    image: ghcr.io/gmwalletapp/gmshop-edge:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GMSHOP_DATA_DIR: /var/lib/gmshop
+    volumes:
+      - gmshop-data:/var/lib/gmshop
+
+volumes:
+  gmshop-data:
+```
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+### Docker command
+
+Without Compose, run the same service directly:
+
+```bash
+docker volume create gmshop-data
+docker run --detach --name gmshop-edge --restart unless-stopped \
+  --publish 3000:3000 \
+  --env GMSHOP_DATA_DIR=/var/lib/gmshop \
+  --volume gmshop-data:/var/lib/gmshop \
+  ghcr.io/gmwalletapp/gmshop-edge:latest
+```
+
+Open `http://your-host:3000/install`, confirm the public Origin and Allowed
+Hosts, then create the first root user. Application, email, payment, supplier,
+and automation settings remain in `/install` and `/admin`; they do not require
+additional public container environment variables.
+
+The non-root container listens on port `3000`. The `gmshop-data` volume stores
+`gmshop.sqlite`, private objects, durable Queue state, and maintenance locks.
+Keep it when updating or recreating the container. Check health with
+`curl --fail http://127.0.0.1:3000/healthz`, follow logs with
+`docker compose logs --follow gmshop-edge`, and update with:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+For source deployments, use Node.js 24 with `bun run build:node` and
+`bun run start:node`. The maintained `bun run data -- …` CLI provides
+`backup`, `restore`, and `import-cloudflare`; restore and import accept only a
+new or empty target and validate integrity before installing data.
+
+## Releases and container images
+
+Conventional feature and fix commits on `main` produce stable releases. Images
+receive the exact version, major, minor, and `latest` tags. Each release updates
+package metadata, creates a GitHub Release and tag, then calls the independent
+Docker workflow. Native x64 and Arm64 runners build and smoke-test in parallel
+before publishing a combined GHCR manifest with SBOM and provenance.
+
+The Release workflow supports manual dispatch for an explicit branch. This is
+also the recovery path when a pushed branch head intentionally contains a
+GitHub Actions skip marker.
 
 ## Keep a fork synchronized
 
@@ -181,6 +286,8 @@ automatic synchronization can continue.
 - [Bun](https://bun.sh/) 1.3 or later
 - A local environment supported by
   [Wrangler](https://developers.cloudflare.com/workers/wrangler/)
+- [Node.js](https://nodejs.org/) 24 for `build:node` and `start:node` (not
+  required when running the published Docker image)
 
 Install dependencies and start the local development server:
 
@@ -213,13 +320,14 @@ After installation:
 
 | Area | Technology |
 | --- | --- |
-| Runtime | Cloudflare Workers |
+| Runtime | Cloudflare Workers or Node/Nitro Docker |
 | Application | React 19, TanStack Start/Router/Query/Table/Form |
 | UI | Tailwind CSS 4, shadcn/Radix |
 | Authentication | Better Auth |
 | Authorization | Project-owned dynamic RBAC with permission bit masks |
-| Data | Cloudflare D1, Drizzle ORM |
-| Edge services | KV, R2, Queues, Cron Triggers, Send Email |
+| Data | Cloudflare D1 or SQLite, Drizzle ORM |
+| Runtime services | KV/R2/Queues/Cron or local cache/objects/durable queue/scheduler |
+| Telegram | grammY, Telegram Bot API, Mini Apps |
 | Internationalization | ParaglideJS |
 | Tooling | Bun, strict TypeScript, Zod, Vitest, Biome, Wrangler |
 
@@ -235,7 +343,11 @@ bun run typecheck
 bun run test
 bun run check
 bun run build
+bun run build:node
 ```
+
+Run `bun run hooks:install` once per clone to enable the local Lefthook
+Conventional Commit check. Its commitlint policy is declared in `package.json`.
 
 After installing a local instance, populate idempotent acceptance fixtures with:
 
@@ -269,6 +381,7 @@ bun run typecheck
 bun run test
 bun run check
 bun run build
+bun run build:node
 ```
 
 Deterministic automated tests cover application behavior. Real payment, email,
@@ -278,8 +391,8 @@ infrastructure.
 
 ## API contract
 
-The machine-readable application HTTP contract is available as
-[OpenAPI YAML](public/openapi.yaml).
+The interactive API reference is available at `/openapi` on a running
+instance. Its machine-readable source is [OpenAPI YAML](public/openapi.yaml).
 
 ## Security
 
@@ -293,6 +406,8 @@ The machine-readable application HTTP contract is available as
   with floating point.
 - Back up D1 and R2 before schema or retention changes, and test recovery rather
   than treating backups as complete when they have not been restored.
+- Back up the complete Node data directory before container upgrades; use the
+  maintained data CLI rather than copying a live SQLite file.
 
 ## License
 

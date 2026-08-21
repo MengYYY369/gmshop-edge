@@ -1,0 +1,13 @@
+services:
+  gmshop-edge:
+    image: ghcr.io/gmwalletapp/gmshop-edge:latest
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GMSHOP_DATA_DIR: /var/lib/gmshop
+    volumes:
+      - gmshop-data:/var/lib/gmshop
+
+volumes:
+  gmshop-data:

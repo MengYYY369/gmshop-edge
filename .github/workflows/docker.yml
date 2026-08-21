@@ -1,0 +1,257 @@
+name: Docker
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Existing semantic-release tag to publish
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing semantic-release tag to republish (for example v1.0.0)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+  attestations: write
+  id-token: write
+
+concurrency:
+  group: docker-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Prepare image metadata
+    runs-on: ubuntu-24.04
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+    outputs:
+      image: ${{ steps.image.outputs.name }}
+      labels: ${{ steps.image.outputs.labels }}
+      tags: ${{ steps.image.outputs.tags }}
+    steps:
+      - name: Validate release tag
+        shell: bash
+        run: |
+          if [[ ! "${RELEASE_TAG}" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            echo "Invalid release tag: ${RELEASE_TAG}" >&2
+            exit 1
+          fi
+
+      - name: Check out release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Prepare image metadata
+        id: image
+        shell: bash
+        run: |
+          version="${RELEASE_TAG#v}"
+          major="${version%%.*}"
+          remainder="${version#*.}"
+          minor="${remainder%%.*}"
+          repository="$(printf '%s' "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          image="ghcr.io/${repository}"
+          revision="$(git rev-parse HEAD)"
+          created="$(git show --no-patch --format='%cI' HEAD)"
+          {
+            echo "name=${image}"
+            echo 'tags<<EOF'
+            echo "${image}:${version}"
+            echo "${image}:${major}.${minor}"
+            echo "${image}:${major}"
+            echo "${image}:latest"
+            echo 'EOF'
+            echo 'labels<<EOF'
+            echo "org.opencontainers.image.source=${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+            echo "org.opencontainers.image.revision=${revision}"
+            echo "org.opencontainers.image.version=${version}"
+            echo "org.opencontainers.image.created=${created}"
+            echo 'org.opencontainers.image.description=Single-tenant digital-goods store for Cloudflare Workers and Node.js'
+            echo 'org.opencontainers.image.licenses=GPL-3.0-or-later'
+            echo 'EOF'
+          } >>"${GITHUB_OUTPUT}"
+
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: prepare
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            platform: linux/amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build release-candidate container
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          load: true
+          tags: gmshop-edge:release-candidate
+          cache-from: type=gha,scope=gmshop-edge-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=gmshop-edge-${{ matrix.arch }}
+
+      - name: Smoke-test release-candidate container
+        shell: bash
+        run: |
+          docker run --detach --name gmshop-edge-release \
+            --publish 127.0.0.1:3000:3000 \
+            --volume gmshop-edge-release-data:/var/lib/gmshop \
+            --env GMSHOP_DATA_DIR=/var/lib/gmshop \
+            gmshop-edge:release-candidate
+
+          healthy=false
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:3000/healthz >/dev/null; then
+              healthy=true
+              break
+            fi
+            sleep 2
+          done
+
+          if [[ "${healthy}" != true ]]; then
+            docker logs gmshop-edge-release
+            exit 1
+          fi
+
+          docker exec gmshop-edge-release bun run data -- --help
+
+      - name: Stop release-candidate container
+        if: always()
+        run: |
+          docker rm --force gmshop-edge-release >/dev/null 2>&1 || true
+          docker volume rm gmshop-edge-release-data >/dev/null 2>&1 || true
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Build and push platform image
+        id: push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ needs.prepare.outputs.image }},push-by-digest=true,name-canonical=true,push=true
+          labels: ${{ needs.prepare.outputs.labels }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha,scope=gmshop-edge-${{ matrix.arch }}
+
+      - name: Export image digest
+        env:
+          IMAGE_DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          if [[ ! "${IMAGE_DIGEST}" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "Invalid platform digest: ${IMAGE_DIGEST}" >&2
+            exit 1
+          fi
+          digest="${IMAGE_DIGEST#sha256:}"
+          mkdir --parents "${RUNNER_TEMP}/digests"
+          touch "${RUNNER_TEMP}/digests/${digest}"
+
+      - name: Upload image digest
+        uses: actions/upload-artifact@v7
+        with:
+          name: digests-${{ matrix.arch }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    name: Publish multi-platform image
+    needs:
+      - prepare
+      - build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download image digests
+        uses: actions/download-artifact@v8
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Create multi-platform manifest
+        id: manifest
+        shell: bash
+        env:
+          IMAGE_NAME: ${{ needs.prepare.outputs.image }}
+          IMAGE_TAGS: ${{ needs.prepare.outputs.tags }}
+        run: |
+          mapfile -t digests < <(
+            find "${RUNNER_TEMP}/digests" -maxdepth 1 -type f -exec basename {} \; |
+              sort
+          )
+          if [[ "${#digests[@]}" -ne 2 ]]; then
+            echo "Expected two platform digests, found ${#digests[@]}." >&2
+            exit 1
+          fi
+
+          tag_arguments=()
+          first_tag=""
+          while IFS= read -r tag; do
+            if [[ -n "${tag}" ]]; then
+              tag_arguments+=(--tag "${tag}")
+              if [[ -z "${first_tag}" ]]; then
+                first_tag="${tag}"
+              fi
+            fi
+          done <<<"${IMAGE_TAGS}"
+
+          sources=()
+          for digest in "${digests[@]}"; do
+            if [[ ! "${digest}" =~ ^[0-9a-f]{64}$ ]]; then
+              echo "Invalid platform digest artifact: ${digest}" >&2
+              exit 1
+            fi
+            sources+=("${IMAGE_NAME}@sha256:${digest}")
+          done
+
+          docker buildx imagetools create "${tag_arguments[@]}" "${sources[@]}"
+          manifest_digest="$(
+            docker buildx imagetools inspect --raw "${first_tag}" |
+              sha256sum |
+              awk '{ print "sha256:" $1 }'
+          )"
+          echo "digest=${manifest_digest}" >>"${GITHUB_OUTPUT}"
+
+      - name: Attest published image
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-name: ${{ needs.prepare.outputs.image }}
+          subject-digest: ${{ steps.manifest.outputs.digest }}
+          push-to-registry: false
