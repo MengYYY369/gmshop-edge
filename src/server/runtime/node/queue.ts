@@ -304,7 +304,7 @@ export class NodeQueueConsumer<T> {
 }
 
 function initializeQueueSchema(database: NodeDatabase) {
-	database.sqlite.exec(`CREATE TABLE IF NOT EXISTS node_queue_messages (
+	database.sqlite.run(`CREATE TABLE IF NOT EXISTS node_queue_messages (
 		id TEXT PRIMARY KEY NOT NULL,
 		queue TEXT NOT NULL,
 		body TEXT NOT NULL,
@@ -316,8 +316,8 @@ function initializeQueueSchema(database: NodeDatabase) {
 		last_error TEXT,
 		created_at INTEGER NOT NULL,
 		updated_at INTEGER NOT NULL
-	);
-	CREATE INDEX IF NOT EXISTS node_queue_ready_idx
+	);`);
+	database.sqlite.run(`CREATE INDEX IF NOT EXISTS node_queue_ready_idx
 	ON node_queue_messages (queue, status, available_at, created_at);`);
 }
 

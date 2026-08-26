@@ -4,7 +4,7 @@
 
 ## Product boundary
 
-- Product, package, Worker, Node service, database, and durable resource names
+- Product, package, Worker, Bun service, database, and durable resource names
   are `GMShop Edge` / `gmshop-edge`.
 - GMShop is a single-deployment, single-tenant digital-goods store, not a payment
   gateway. It supports stock, private-download, and automation products.
@@ -19,8 +19,8 @@
 
 - Use Bun, strict TypeScript, React 19, TanStack Start/Router/Query/Table/Form,
   Tailwind CSS 4, shadcn/Radix, Zod, Better Auth, Drizzle, Cloudflare Workers
-  (D1, KV, R2, Queues, Cron), Node.js with Nitro and SQLite, Paraglide, Vitest,
-  Biome, and Wrangler. Docker is the supported Node distribution.
+  (D1, KV, R2, Queues, Cron), Bun with Nitro and SQLite, Paraglide, Vitest,
+  Biome, and Wrangler. Docker is the supported Bun distribution.
 - Do not add a second router, auth system, ORM, form system, cache, formatter,
   linter, or i18n runtime.
 - Feature pages, schemas, server functions, types, and domain behavior remain in
@@ -44,9 +44,9 @@
 - D1 is authoritative for orders, coupons, inventory, entitlements, automation quota,
   replay, rate limits, and audit. State transitions and outbox writes are atomic
   and idempotent. KV is only a validated, versioned, bounded read cache.
-- Workers and Node/Nitro run the same full stack through explicit runtime
-  adapters. Node uses SQLite authority, an in-process bounded cache, local
-  private objects, a durable SQLite Queue, and a one-minute scheduler. Node is
+- Workers and Bun/Nitro run the same full stack through explicit runtime
+  adapters. Bun uses SQLite authority, an in-process bounded cache, local
+  private objects, a durable SQLite Queue, and a one-minute scheduler. Bun is
   single-instance only; multi-replica and shared-network storage are unsupported.
 - Private product media, downloads, artifacts, and exports use R2. Client input
   never selects an object key. Queue messages contain non-secret references only.
@@ -96,10 +96,10 @@
 - The only clean-install migration baseline is `drizzle/0000_gmshop.sql`. Do not
   regenerate it on normal dev start or disguise gateway data as shop data.
 - `bun run build`, `bun run predeploy`, and `bun run deploy` are Workers paths;
-  Node uses `bun run build:node` and the multi-architecture GHCR image. The only
-  public Node environment variable is `GMSHOP_DATA_DIR`; configure Origin,
+  Bun uses `bun run build:bun` and the multi-architecture GHCR image. The only
+  public Bun environment variable is `GMSHOP_DATA_DIR`; configure Origin,
   Allowed Hosts, email, and business credentials through the product UI.
-- Node backup, restore, and Cloudflare import must use `bun run data -- …`.
+- Bun backup, restore, and Cloudflare import must use `bun run data -- …`.
   Never overwrite a non-empty target or copy a live SQLite database.
 - Real payment, email, Telegram, and build-provider smoke suites are manual and
   unconditionally skipped; credentials or environment variables must not enable
@@ -112,7 +112,7 @@ bun run typecheck
 bun run test
 bun run check
 bun run build
-bun run build:node
+bun run build:bun
 ```
 
 - Completion also requires empty-D1 migration, permission-path, query-plan,

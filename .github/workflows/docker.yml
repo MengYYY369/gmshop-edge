@@ -73,7 +73,7 @@ jobs:
             echo "org.opencontainers.image.revision=${revision}"
             echo "org.opencontainers.image.version=${version}"
             echo "org.opencontainers.image.created=${created}"
-            echo 'org.opencontainers.image.description=Single-tenant digital-goods store for Cloudflare Workers and Node.js'
+            echo 'org.opencontainers.image.description=Single-tenant digital-goods store for Cloudflare Workers and Bun'
             echo 'org.opencontainers.image.licenses=GPL-3.0-or-later'
             echo 'EOF'
           } >>"${GITHUB_OUTPUT}"
@@ -134,6 +134,14 @@ jobs:
             exit 1
           fi
 
+          curl --fail --silent --show-error http://127.0.0.1:3000/ >/dev/null
+          curl --fail --silent --show-error \
+            --header 'Host: shop.example' \
+            --header 'X-Forwarded-Proto: https' \
+            --dump-header /tmp/gmshop-edge-headers \
+            --output /dev/null \
+            http://127.0.0.1:3000/install
+          grep --ignore-case '^strict-transport-security:' /tmp/gmshop-edge-headers
           docker exec gmshop-edge-release bun run data -- --help
 
       - name: Stop release-candidate container

@@ -6,7 +6,7 @@ import { DomainError } from "#/lib/domain-error";
 
 const downloadSchema = z.object({
 	orderNumber: z.string().trim().min(8).max(80),
-	assetId: z.string().uuid(),
+	assetId: z.uuid(),
 	email: storeOrderLookupSchema.shape.email.optional(),
 });
 

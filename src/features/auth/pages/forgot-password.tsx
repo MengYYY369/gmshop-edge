@@ -29,7 +29,9 @@ export function ForgotPasswordPage() {
 		toast.success(m.auth_reset_request_sent());
 	}
 
-	async function submit(event: React.FormEvent) {
+	async function submit(
+		event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>,
+	) {
 		event.preventDefault();
 		if (!sent) {
 			await requestCode();

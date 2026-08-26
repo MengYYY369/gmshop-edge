@@ -33,7 +33,7 @@ type CouponRow = {
 	scope_json: string;
 };
 
-const scopeIdsSchema = z.array(z.string().uuid());
+const scopeIdsSchema = z.array(z.uuid());
 const scopeTagNamesSchema = z.array(z.string().trim().min(1).max(50));
 
 export const listCouponsFn = createServerFn({ method: "GET" })

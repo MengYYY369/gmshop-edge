@@ -119,5 +119,5 @@ export const checkoutStoreOrderSchema =
 
 export const storeOrderLookupSchema = z.object({
 	orderNumber: z.string().trim().toUpperCase().min(8).max(80),
-	email: z.string().trim().toLowerCase().email().max(320),
+	email: z.string().trim().toLowerCase().pipe(z.email().max(320)),
 });

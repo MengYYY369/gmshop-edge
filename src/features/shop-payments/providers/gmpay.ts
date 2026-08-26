@@ -8,7 +8,6 @@ import {
 	epusdtMerchantOrderId,
 	epusdtUrl,
 	manualRefundMethods,
-	parseEpusdtJson,
 	scalarRecord,
 	signGmpay,
 	verifyGmpaySignature,

@@ -13,7 +13,7 @@ const REFUND_PROCESSING_LEASE_MS = 120_000;
 import { loadRuntimeConfig } from "#/server/runtime-config";
 
 const refundRequestSchema = z.object({
-	orderId: z.string().uuid(),
+	orderId: z.uuid(),
 	amountMinor: z.string().regex(/^\d+$/),
 	reason: z.string().trim().min(1).max(2_000),
 	idempotencyKey: z.string().trim().min(8).max(200),

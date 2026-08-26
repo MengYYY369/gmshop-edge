@@ -123,7 +123,7 @@ export async function backupNodeData(
 	outputDirectory: string,
 ) {
 	const layout = resolveNodeDataLayout(dataDirectory);
-	await requireFile(layout.database, "Node database");
+	await requireFile(layout.database, "Bun database");
 	await assertOutsideDataDirectory(layout.root, outputDirectory);
 	await prepareEmptyDestination(outputDirectory);
 	await chmod(layout.root, 0o700);
@@ -228,16 +228,16 @@ export async function importCloudflareData({
 			// D1 exports and Drizzle rebuild migrations may toggle foreign keys while
 			// replacing referenced tables. Keep checks disabled for the complete import
 			// and validate the finished database before it can replace the destination.
-			database.exec("PRAGMA foreign_keys = OFF");
+			database.run("PRAGMA foreign_keys = OFF");
 			const sql = (await readFile(d1Sql, "utf8")).replace(
 				/PRAGMA\s+foreign_keys\s*=\s*(?:ON|OFF)\s*;?/giu,
 				"",
 			);
-			database.exec(sql);
+			database.run(sql);
 			const migrations = await loadNodeMigrations();
 			validateGmshopSchema(database);
 			seedNodeMigrations(database, migrations);
-			database.exec("PRAGMA foreign_keys = ON");
+			database.run("PRAGMA foreign_keys = ON");
 			validateDatabase(database, migrations);
 		} finally {
 			database.close();
@@ -333,7 +333,7 @@ function seedNodeMigrations(database: Database, migrations: NodeMigration[]) {
 		throw new Error(
 			`D1 export is missing required migrations: ${missing.map(({ name }) => name).join(", ")}`,
 		);
-	database.exec(`CREATE TABLE node_migrations (
+	database.run(`CREATE TABLE node_migrations (
 		name TEXT PRIMARY KEY NOT NULL,
 		checksum TEXT NOT NULL,
 		applied_at INTEGER NOT NULL
@@ -376,10 +376,10 @@ function openDataDatabase(filename: string, create = true) {
 		create,
 		strict: true,
 	});
-	database.exec("PRAGMA busy_timeout = 5000");
-	database.exec("PRAGMA foreign_keys = ON");
-	database.exec("PRAGMA journal_mode = WAL");
-	database.exec("PRAGMA synchronous = FULL");
+	database.run("PRAGMA busy_timeout = 5000");
+	database.run("PRAGMA foreign_keys = ON");
+	database.run("PRAGMA journal_mode = WAL");
+	database.run("PRAGMA synchronous = FULL");
 	return database;
 }
 
@@ -607,7 +607,7 @@ async function acquireMaintenanceLock(layout: NodeDataLayout) {
 	} catch (error) {
 		if (isErrnoException(error) && error.code === "EEXIST")
 			throw new Error(
-				`Node data is already in maintenance: ${layout.maintenanceLock}`,
+				`Bun data is already in maintenance: ${layout.maintenanceLock}`,
 			);
 		throw error;
 	}

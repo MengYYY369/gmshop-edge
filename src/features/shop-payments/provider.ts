@@ -7,7 +7,6 @@ export const paymentProviderValues = [
 	"gmpay",
 	"epay",
 	"epay_v1",
-	"paypal",
 	"alipay_page",
 	"alipay_wap",
 	"wechat_native",
@@ -20,7 +19,6 @@ export type PaymentProviderFamily =
 	| "gmpay"
 	| "epay"
 	| "epay_v1"
-	| "paypal"
 	| "alipay"
 	| "wechat";
 
@@ -171,7 +169,7 @@ export const stripeCredentialSchema = z.object({
 });
 
 export const cryptomusCredentialSchema = z.object({
-	merchantId: z.string().uuid(),
+	merchantId: z.uuid(),
 	paymentApiKey: z.string().trim().min(8).max(512),
 });
 
@@ -186,13 +184,6 @@ export const epayCredentialSchema = epusdtCredentialSchema()
 			message: "EPay requires a numeric PID",
 		});
 	});
-
-export const paypalCredentialSchema = z.object({
-	clientId: z.string().trim().min(20).max(256),
-	clientSecret: z.string().min(20).max(512),
-	webhookId: z.string().trim().max(256).default(""),
-	isSandbox: z.boolean().default(false),
-});
 
 export const alipayCredentialSchema = z.object({
 	appId: z

@@ -5,4 +5,4 @@ export const supplierApiKeyCreateSchema = sensitiveProofSchema.extend({
 	name: z.string().trim().min(1).max(100),
 });
 
-export const supplierApiKeyIdSchema = z.object({ id: z.string().uuid() });
+export const supplierApiKeyIdSchema = z.object({ id: z.uuid() });

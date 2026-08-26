@@ -18,10 +18,10 @@ export const adminOrderListSchema = z.object({
 	search: z.string().trim().max(200).default(""),
 });
 
-export const orderIdSchema = z.object({ id: z.string().uuid() });
+export const orderIdSchema = z.object({ id: z.uuid() });
 
 export const orderTransitionSchema = z.object({
-	id: z.string().uuid(),
+	id: z.uuid(),
 	version: z.number().int().positive(),
 	toStatus: z.enum(shopOrderStatuses),
 	note: z
@@ -32,7 +32,7 @@ export const orderTransitionSchema = z.object({
 });
 
 export const orderAdminNoteSchema = z.object({
-	id: z.string().uuid(),
+	id: z.uuid(),
 	note: z
 		.string()
 		.trim()
@@ -41,14 +41,14 @@ export const orderAdminNoteSchema = z.object({
 });
 
 export const refundRequestSchema = z.object({
-	orderId: z.string().uuid(),
+	orderId: z.uuid(),
 	amountMinor: z.string().regex(/^\d+$/),
 	reason: z.string().trim().min(1).max(2_000),
 	idempotencyKey: z.string().trim().min(8).max(200),
 });
 
 export const manualRefundCompletionSchema = z.object({
-	id: z.string().uuid(),
+	id: z.uuid(),
 	reference: z.string().trim().min(1).max(200),
 });
 
@@ -68,14 +68,14 @@ export const afterSaleStatusValues = [
 ] as const;
 
 export const afterSaleOpenSchema = z.object({
-	orderId: z.string().uuid(),
-	orderItemId: z.string().uuid().nullable().default(null),
+	orderId: z.uuid(),
+	orderItemId: z.uuid().nullable().default(null),
 	type: z.enum(afterSaleTypeValues),
 	reason: z.string().trim().min(5).max(2_000),
 });
 
 export const afterSaleUpdateSchema = z.object({
-	id: z.string().uuid(),
+	id: z.uuid(),
 	status: z.enum(afterSaleStatusValues),
 	resolution: z.string().trim().max(4_000).default(""),
 	note: z.string().trim().max(2_000).default(""),

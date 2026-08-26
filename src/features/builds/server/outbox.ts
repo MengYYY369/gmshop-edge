@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { AutomationQueueMessage } from "#/server/queue/types";
 
-const payloadSchema = z.object({ automationJobId: z.string().uuid() });
+const payloadSchema = z.object({ automationJobId: z.uuid() });
 
 export async function publishPendingBuilds(
 	db: D1Database,

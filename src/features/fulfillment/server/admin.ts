@@ -26,8 +26,8 @@ const listInput = z.object({
 	status: z.enum(deliveryStatuses).optional(),
 });
 
-const idInput = z.object({ id: z.string().uuid() });
-const revealInput = sensitiveProofSchema.extend({ id: z.string().uuid() });
+const idInput = z.object({ id: z.uuid() });
+const revealInput = sensitiveProofSchema.extend({ id: z.uuid() });
 
 export const listDeliveriesFn = createServerFn({ method: "GET" })
 	.validator((input: z.input<typeof listInput>) => listInput.parse(input))

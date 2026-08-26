@@ -14,7 +14,7 @@ const productSchema = z.object({
 	tags: z.array(z.string().max(512)).max(100).default([]),
 	category_id: z.number().int().nonnegative().default(0),
 	is_active: z.boolean(),
-	updated_at: z.string().datetime({ offset: true }).nullable().optional(),
+	updated_at: z.iso.datetime({ offset: true }).nullable().optional(),
 	skus: z
 		.array(
 			z.object({

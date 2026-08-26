@@ -9,7 +9,7 @@ export const stockEntryStatuses = [
 	"disabled",
 ] as const;
 
-const idSchema = z.string().uuid();
+const idSchema = z.uuid();
 const optionalText = (max: number) =>
 	z
 		.string()

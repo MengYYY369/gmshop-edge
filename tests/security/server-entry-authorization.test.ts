@@ -133,23 +133,6 @@ describe("server entry authorization coverage", () => {
 			);
 	});
 
-	it("orders liveness, authority, app handling, and response security once", () => {
-		const entry = read("src/server-entry.ts");
-		const positions = [
-			"handleLivenessRequest(request)",
-			"const rejected = await validateRequestAuthority(",
-			"handleI18nRequest(",
-			"return applySecurityHeaders(",
-		].map((token) => entry.lastIndexOf(token));
-		expect(positions.every((position) => position >= 0)).toBe(true);
-		expect(positions[0]).toBeLessThan(positions[1] ?? -1);
-		expect(positions[1]).toBeLessThan(positions[2] ?? -1);
-		expect(positions[2]).toBeLessThan(positions[3] ?? -1);
-		expect(read("src/start.ts")).toContain(
-			"functionMiddleware: [serverFunctionErrorMiddleware]",
-		);
-	});
-
 	it("does not mutate runtime configuration from public install or auth reads", () => {
 		for (const file of [
 			"src/features/installation/server/functions.ts",

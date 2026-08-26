@@ -6,7 +6,7 @@ import { getEnv } from "#/server/db.server";
 import { createDownloadAsset } from "./download-assets";
 
 const updateSchema = z.object({
-	id: z.string().uuid(),
+	id: z.uuid(),
 	enabled: z.boolean(),
 });
 

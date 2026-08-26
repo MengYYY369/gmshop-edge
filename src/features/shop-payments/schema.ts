@@ -5,13 +5,12 @@ import {
 	epayCredentialSchema,
 	epayV1CredentialSchema,
 	gmpayCredentialSchema,
-	paypalCredentialSchema,
 	paymentProviderValues,
 	stripeCredentialSchema,
 	wechatCredentialSchema,
 } from "#/features/shop-payments/provider";
 
-const idSchema = z.string().uuid();
+const idSchema = z.uuid();
 
 export const paymentChannelListSchema = z.object({
 	pageIndex: z.number().int().min(0).default(0),
@@ -57,15 +56,9 @@ export const paymentChannelInputSchema = z
 		wechatMerchantSerialNumber: z.string().trim().max(128).optional(),
 		wechatMerchantPrivateKeyPem: z.string().max(8_192).optional(),
 		wechatApiV3Key: z.string().max(64).optional(),
-		wechatPlatformSerialNumber: z.string().trim().max(128).optional(),
-		wechatPlatformPublicKeyPem: z.string().max(8_192).optional(),
-		paypalClientId: z.string().trim().max(256).optional(),
-		paypalClientSecret: z.string().max(512).optional(),
-		paypalWebhookId: z.string().trim().max(256).optional(),
-		paypalIsSandbox: z
-			.union([z.boolean(), z.enum(["sandbox", "live"])])
-			.optional(),
-	})
+	wechatPlatformSerialNumber: z.string().trim().max(128).optional(),
+	wechatPlatformPublicKeyPem: z.string().max(8_192).optional(),
+})
 	.superRefine((value, context) => {
 		if (Boolean(value.defaultToken) !== Boolean(value.defaultNetwork))
 			context.addIssue({
@@ -178,59 +171,33 @@ export const paymentChannelInputSchema = z
 				);
 			return;
 		}
-		if (value.provider === "paypal") {
-			const changingCredential = Boolean(
-				value.paypalClientId ||
-					value.paypalClientSecret ||
-					value.paypalWebhookId,
-			);
-			if (!value.id || changingCredential)
-				addCredentialIssues(
-					paypalCredentialSchema.safeParse({
-						clientId: value.paypalClientId,
-						clientSecret: value.paypalClientSecret,
-						webhookId: value.paypalWebhookId,
-						isSandbox:
-							value.paypalIsSandbox === "sandbox" ||
-							value.paypalIsSandbox === true,
-					}),
-					{
-						clientId: "paypalClientId",
-						clientSecret: "paypalClientSecret",
-						webhookId: "paypalWebhookId",
-						isSandbox: "paypalIsSandbox",
-					},
-					context,
-				);
-			return;
-		}
-		const changingEpusdt = Boolean(
-			value.epusdtBaseUrl || value.epusdtPid || value.epusdtSecretKey,
+	const changingEpusdt = Boolean(
+		value.epusdtBaseUrl || value.epusdtPid || value.epusdtSecretKey,
+	);
+	if (!value.id || changingEpusdt) {
+		const schema =
+			value.provider === "gmpay"
+				? gmpayCredentialSchema
+				: value.provider === "epay_v1"
+					? epayV1CredentialSchema
+					: epayCredentialSchema;
+		addCredentialIssues(
+			schema.safeParse({
+				baseUrl: value.epusdtBaseUrl,
+				pid: value.epusdtPid,
+				secretKey: value.epusdtSecretKey,
+				paymentMethod: value.epusdtPaymentMethod,
+			}),
+			{
+				baseUrl: "epusdtBaseUrl",
+				pid: "epusdtPid",
+				secretKey: "epusdtSecretKey",
+				paymentMethod: "epusdtPaymentMethod",
+			},
+			context,
 		);
-		if (!value.id || changingEpusdt) {
-			const schema =
-				value.provider === "gmpay"
-					? gmpayCredentialSchema
-						: value.provider === "epay_v1"
-							? epayV1CredentialSchema
-							: epayCredentialSchema;
-			addCredentialIssues(
-				schema.safeParse({
-					baseUrl: value.epusdtBaseUrl,
-					pid: value.epusdtPid,
-					secretKey: value.epusdtSecretKey,
-					paymentMethod: value.epusdtPaymentMethod,
-				}),
-				{
-					baseUrl: "epusdtBaseUrl",
-					pid: "epusdtPid",
-					secretKey: "epusdtSecretKey",
-					paymentMethod: "epusdtPaymentMethod",
-				},
-				context,
-			);
-		}
-	});
+	}
+});
 
 type CredentialParseResult =
 	| { success: true }

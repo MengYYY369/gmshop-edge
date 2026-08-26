@@ -72,7 +72,7 @@ export async function createWebSupportConversation(
 			? sessionUser.email
 			: null;
 	const email = (accountEmail ?? input.email)?.trim().toLowerCase();
-	if (!email || !z.string().email().safeParse(email).success)
+	if (!email || !z.email().safeParse(email).success)
 		throw new WebSupportError("email_required", 400);
 
 	const ip = trustedClientIp(request);

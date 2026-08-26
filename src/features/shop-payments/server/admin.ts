@@ -8,7 +8,6 @@ import {
 	epayCredentialSchema,
 	epayV1CredentialSchema,
 	gmpayCredentialSchema,
-	paypalCredentialSchema,
 	type PaymentProvider,
 	paymentProviderFamily,
 	stripeCredentialSchema,
@@ -468,9 +467,7 @@ async function channelCredential(
 	if (
 		!value &&
 		current &&
-		(data.provider === "gmpay" ||
-			data.provider === "epay" ||
-			data.provider === "epay_v1")
+		(data.provider === "gmpay" || data.provider === "epay" || data.provider === "epay_v1")
 	) {
 		const runtime = await loadRuntimeConfig(db);
 		if (!runtime.commerceSecret)
@@ -482,9 +479,9 @@ async function channelCredential(
 		const schema =
 			data.provider === "gmpay"
 				? gmpayCredentialSchema
-					: data.provider === "epay_v1"
-						? epayV1CredentialSchema
-						: epayCredentialSchema;
+				: data.provider === "epay_v1"
+					? epayV1CredentialSchema
+					: epayCredentialSchema;
 		const currentValue = schema.parse(
 			JSON.parse(
 				await decryptSecret(
@@ -496,12 +493,10 @@ async function channelCredential(
 		);
 		value =
 			data.provider === "epay" || data.provider === "epay_v1"
-				? (data.provider === "epay" ? epayCredentialSchema : epayV1CredentialSchema).parse(
-						{
-							...currentValue,
-							paymentMethod: data.epusdtPaymentMethod,
-						},
-					)
+				? (data.provider === "epay_v1" ? epayV1CredentialSchema : epayCredentialSchema).parse({
+						...currentValue,
+						paymentMethod: data.epusdtPaymentMethod,
+					})
 				: currentValue;
 	}
 	if (!value) {
@@ -532,17 +527,6 @@ function credentialValue(data: z.output<typeof paymentChannelInputSchema>) {
 		return cryptomusCredentialSchema.parse({
 			merchantId: data.cryptomusMerchantId,
 			paymentApiKey: data.cryptomusPaymentApiKey,
-		});
-	}
-	if (data.provider === "paypal") {
-		if (!data.paypalClientId && !data.paypalClientSecret && !data.paypalWebhookId)
-			return null;
-		return paypalCredentialSchema.parse({
-			clientId: data.paypalClientId,
-			clientSecret: data.paypalClientSecret,
-			webhookId: data.paypalWebhookId,
-			isSandbox:
-				data.paypalIsSandbox === "sandbox" || data.paypalIsSandbox === true,
 		});
 	}
 	if (data.provider === "stripe") {

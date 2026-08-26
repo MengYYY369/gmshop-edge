@@ -19,7 +19,7 @@ const minorAmountSchema = z
 	.max(64);
 
 export const supplierAccountInputSchema = z.object({
-	id: z.string().uuid().optional(),
+	id: z.uuid().optional(),
 	provider: supplierProviderSchema,
 	baseUrl: z.string().trim().min(1).max(2048),
 	name: z.string().trim().min(1).max(120),
@@ -36,7 +36,7 @@ export const supplierAccountInputSchema = z.object({
 	credentials: z.unknown().optional(),
 });
 
-export const supplierAccountIdSchema = z.object({ id: z.string().uuid() });
+export const supplierAccountIdSchema = z.object({ id: z.uuid() });
 
 export const supplierAccountListSchema = z.object({
 	search: z.string().trim().max(120).default(""),
@@ -87,7 +87,7 @@ export const supplierImportSchema = supplierSourceInputSchema.extend({
 });
 
 export const supplierBindingSwitchSchema = supplierSourceInputSchema.extend({
-	sellableItemId: z.string().uuid(),
+	sellableItemId: z.uuid(),
 	productId: z.string().min(1).max(512),
 	skuId: z.string().min(1).max(512),
 });
@@ -99,7 +99,7 @@ export const supplierOrderListSchema = z.object({
 });
 
 export const supplierOrderActionSchema = z.object({
-	id: z.string().uuid(),
+	id: z.uuid(),
 	action: z.enum(["reconcile", "reselect"]),
 });
 

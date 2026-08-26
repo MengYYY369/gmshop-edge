@@ -1,6 +1,14 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, Cell, XAxis, YAxis } from "recharts";
+import {
+	Bar,
+	BarChart,
+	type BarShapeProps,
+	CartesianGrid,
+	Rectangle,
+	XAxis,
+	YAxis,
+} from "recharts";
 import {
 	type ChartConfig,
 	ChartContainer,
@@ -90,11 +98,13 @@ export function SalesBreakdownChart({
 						/>
 					}
 				/>
-				<Bar dataKey="amount" radius={[0, 6, 6, 0]}>
-					{data.map((item) => (
-						<Cell fill={item.color} key={item.label} />
-					))}
-				</Bar>
+				<Bar
+					dataKey="amount"
+					radius={[0, 6, 6, 0]}
+					shape={(props: BarShapeProps) => (
+						<Rectangle {...props} fill={String(props.payload.color)} />
+					)}
+				/>
 			</BarChart>
 		</ChartContainer>
 	);

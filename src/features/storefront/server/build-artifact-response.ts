@@ -5,8 +5,8 @@ import { DomainError } from "#/lib/domain-error";
 
 const schema = z.object({
 	orderNumber: z.string().trim().min(8).max(80),
-	automationJobId: z.string().uuid(),
-	artifactId: z.string().uuid(),
+	automationJobId: z.uuid(),
+	artifactId: z.uuid(),
 });
 
 export async function storeAutomationArtifactResponse(

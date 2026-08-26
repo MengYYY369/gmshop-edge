@@ -12,7 +12,7 @@ const listSchema = z.object({
 	pageSize: z.number().int().min(1).max(100).default(10),
 	search: z.string().trim().max(200).default(""),
 });
-const jobSchema = z.object({ id: z.string().uuid() });
+const jobSchema = z.object({ id: z.uuid() });
 
 export const listBuildJobsFn = createServerFn({ method: "GET" })
 	.validator((input: z.input<typeof listSchema>) => listSchema.parse(input))

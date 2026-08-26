@@ -21,7 +21,7 @@ const apiBaseUrl = "https://api.cryptomus.com/v1";
 const encoder = new TextEncoder();
 
 const invoiceSchema = z.object({
-	uuid: z.string().uuid(),
+	uuid: z.uuid(),
 	order_id: z.string().min(1).max(128),
 	amount: z.string().regex(/^\d+(?:\.\d+)?$/),
 	currency: z.string().min(1).max(16),
@@ -41,17 +41,15 @@ const healthResponseSchema = z.object({
 	result: z.unknown(),
 });
 
-const webhookSchema = z
-	.object({
-		type: z.literal("payment"),
-		uuid: z.string().uuid(),
-		order_id: z.string().min(1).max(128),
-		amount: z.string().regex(/^\d+(?:\.\d+)?$/),
-		currency: z.string().min(1).max(16),
-		status: z.string().min(1).max(64),
-		sign: z.string().regex(/^[a-f\d]{32}$/i),
-	})
-	.passthrough();
+const webhookSchema = z.looseObject({
+	type: z.literal("payment"),
+	uuid: z.uuid(),
+	order_id: z.string().min(1).max(128),
+	amount: z.string().regex(/^\d+(?:\.\d+)?$/),
+	currency: z.string().min(1).max(16),
+	status: z.string().min(1).max(64),
+	sign: z.string().regex(/^[a-f\d]{32}$/i),
+});
 
 type CryptomusCredential = z.output<typeof cryptomusCredentialSchema>;
 

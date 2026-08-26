@@ -4,7 +4,7 @@ import { authProviderAllowedScopes } from "#/features/auth/provider-presets";
 export const authProviderTypes = ["email", "social"] as const;
 
 const authProviderRecordIdSchema = z.union([
-	z.string().uuid(),
+	z.uuid(),
 	z.literal("auth-provider-credential"),
 ]);
 

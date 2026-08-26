@@ -4,7 +4,7 @@
 
 ## 产品边界
 
-- 产品、包、Worker、Node 服务、数据库和持久资源名称统一为 `GMShop Edge` /
+- 产品、包、Worker、Bun 服务、数据库和持久资源名称统一为 `GMShop Edge` /
   `gmshop-edge`。
 - GMShop 是单部署、单租户数字商品商城，不是支付网关；支持预置库存、私有下载和
   自动化商品。
@@ -17,8 +17,8 @@
 
 - 使用 Bun、严格 TypeScript、React 19、TanStack Start/Router/Query/Table/Form、
   Tailwind CSS 4、shadcn/Radix、Zod、Better Auth、Drizzle、Cloudflare Workers
-  （D1/KV/R2/Queues/Cron）、Node.js + Nitro + SQLite、Paraglide、Vitest、Biome
-  和 Wrangler；Docker 是支持的 Node 分发方式。
+  （D1/KV/R2/Queues/Cron）、Bun + Nitro + SQLite、Paraglide、Vitest、Biome
+  和 Wrangler；Docker 是支持的 Bun 分发方式。
 - 不增加第二套路由、认证、ORM、表单、缓存、格式化、检查或 i18n 运行时。
 - feature 的页面、schema、Server Function、类型和行为位于 `src/features`；路由保持
   薄层；跨领域运行时位于 `src/server`；Drizzle schema 位于 `src/db/schema`；测试位于
@@ -35,8 +35,8 @@
   金额绝不使用浮点。
 - D1 权威决定订单、优惠券、库存、权益、自动化额度、重放、限流和审计；状态转换与
   outbox 原子且幂等。KV 仅用于已校验、带版本、有时限的读取缓存。
-- Workers 与 Node/Nitro 通过显式运行时适配器承载同一全栈。Node 使用 SQLite 权威数据、
-  进程内有界缓存、本地私有对象、SQLite 可靠 Queue 和一分钟调度器。Node 仅支持单实例，
+- Workers 与 Bun/Nitro 通过显式运行时适配器承载同一全栈。Bun 使用 SQLite 权威数据、
+  进程内有界缓存、本地私有对象、SQLite 可靠 Queue 和一分钟调度器。Bun 仅支持单实例，
   不支持多副本或共享网络存储。
 - 私有商品图片、下载、制品和导出使用 R2；客户端不得选择 object key；Queue 只携带
   非秘密引用。
@@ -74,10 +74,10 @@
 - Biome 是唯一格式化/导入整理器，保留用户无关改动。
 - 全新安装唯一迁移为 `drizzle/0000_gmshop.sql`；正常开发不重复生成，也不把网关数据
   伪装成商城数据。
-- `bun run build`、`bun run predeploy` 与 `bun run deploy` 仅用于 Workers；Node 使用
-  `bun run build:node` 和多架构 GHCR 镜像。唯一公开 Node 环境变量是
+- `bun run build`、`bun run predeploy` 与 `bun run deploy` 仅用于 Workers；Bun 使用
+  `bun run build:bun` 和多架构 GHCR 镜像。唯一公开 Bun 环境变量是
   `GMSHOP_DATA_DIR`；Origin、Allowed Hosts、邮件和业务凭据由产品界面配置。
-- Node 备份、恢复及 Cloudflare 迁入必须使用 `bun run data -- …`，禁止覆盖非空目标或
+- Bun 备份、恢复及 Cloudflare 迁入必须使用 `bun run data -- …`，禁止覆盖非空目标或
   复制运行中的 SQLite 数据库。
 - 真实支付、邮件、Telegram、构建提供商 smoke 测试是手动且无条件跳过资产；环境变量
   不得自动启用。
@@ -88,7 +88,7 @@ bun run typecheck
 bun run test
 bun run check
 bun run build
-bun run build:node
+bun run build:bun
 ```
 
 - 完成还要求空 D1 迁移、权限路径、查询计划、R2/Queue、双语言/主题/移动/键盘浏览器

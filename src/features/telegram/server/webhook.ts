@@ -7,11 +7,9 @@ import {
 } from "./secret";
 import { telegramRuntime } from "./sync";
 
-const telegramUpdateSchema = z
-	.object({
-		update_id: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
-	})
-	.passthrough();
+const telegramUpdateSchema = z.looseObject({
+	update_id: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+});
 
 export async function processTelegramWebhook(
 	db: D1Database,

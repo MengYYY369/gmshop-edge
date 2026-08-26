@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const couponTypes = ["fixed", "percentage"] as const;
-const idSchema = z.string().uuid();
+const idSchema = z.uuid();
 const tagNameSchema = z.string().trim().min(1).max(50);
 export const couponScopeSchema = z
 	.object({

@@ -356,7 +356,7 @@ export const reorderEmailChannelsFn = createServerFn({ method: "POST" })
 	});
 
 const testEmailSchema = z.object({
-	configId: z.string().uuid().nullable().optional(),
+	configId: z.uuid().nullable().optional(),
 	recipient: z.email().max(320),
 });
 
@@ -479,7 +479,7 @@ export const saveNotificationTemplateFn = createServerFn({ method: "POST" })
 		return { id: data.id };
 	});
 
-const retryDeliverySchema = z.object({ id: z.string().uuid() });
+const retryDeliverySchema = z.object({ id: z.uuid() });
 
 export const retryNotificationDeliveryFn = createServerFn({ method: "POST" })
 	.validator((input: z.input<typeof retryDeliverySchema>) =>

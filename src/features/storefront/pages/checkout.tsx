@@ -10,8 +10,8 @@ import {
 	ShoppingCart,
 } from "lucide-react";
 import {
-	type FormEvent,
 	type ReactNode,
+	type SyntheticEvent,
 	useEffect,
 	useMemo,
 	useRef,
@@ -247,7 +247,7 @@ export function StorefrontCheckoutPage() {
 		onError: () => toast.error(m.store_checkout_failed()),
 	});
 
-	function submit(event: FormEvent) {
+	function submit(event: SyntheticEvent<HTMLFormElement, SubmitEvent>) {
 		event.preventDefault();
 		if (
 			blocked ||

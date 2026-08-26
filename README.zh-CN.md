@@ -5,7 +5,7 @@
 简体中文 · [English](README.md)
 
 [![许可证：GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-3DA639.svg?style=flat-square)](LICENSE)
-[![运行时：Workers + Node](https://img.shields.io/badge/runtimes-Workers%20%2B%20Node-F38020.svg?style=flat-square)](#系统架构)
+[![运行时：Workers + Bun](https://img.shields.io/badge/runtimes-Workers%20%2B%20Bun-F38020.svg?style=flat-square)](#系统架构)
 [![Bun](https://img.shields.io/badge/toolchain-Bun-000000.svg?style=flat-square&logo=bun&logoColor=white)](https://bun.sh/)
 [![TypeScript](https://img.shields.io/badge/language-TypeScript-3178C6.svg?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB.svg?style=flat-square&logo=react&logoColor=white)](https://react.dev/)
@@ -16,7 +16,7 @@
 [![@visulima/email](https://img.shields.io/badge/email-%40visulima%2Femail-2563EB.svg?style=flat-square)](https://visulima.com/packages/email)
 [![界面语言：2](https://img.shields.io/badge/locales-2-7C3AED.svg?style=flat-square)](project.inlang/settings.json)
 
-GMShop Edge 是可部署到 Cloudflare Workers 或 Node/Nitro Docker 容器的自托管、单部署、
+GMShop Edge 是可部署到 Cloudflare Workers 或 Bun/Nitro Docker 容器的自托管、单部署、
 单租户数字商品商城。一个部署即可提供响应式公开商城、客户中心、结算与交付，以及基于
 权限的管理后台。
 
@@ -83,7 +83,7 @@ flowchart LR
     end
 
     Cloudflare["Cloudflare 服务<br/>D1 · KV · R2 · Queues · Cron"]
-    Node["Node 服务<br/>SQLite · 本地对象 · 可靠队列 · 调度器"]
+    Bun["Bun 服务<br/>SQLite · 本地对象 · 可靠队列 · 调度器"]
     Providers["业务服务商<br/>收银台 · 邮件 · 自动化"]
     Upstreams["上游供货平台<br/>异次元发卡 · 独角数卡 Next"]
 
@@ -92,16 +92,16 @@ flowchart LR
     Commerce <--> Cloudflare
     Suppliers <--> Cloudflare
     Delivery <--> Cloudflare
-    Commerce <--> Node
-    Suppliers <--> Node
-    Delivery <--> Node
+    Commerce <--> Bun
+    Suppliers <--> Bun
+    Delivery <--> Bun
     Delivery --> Providers
     Suppliers <--> Upstreams
 ```
 
-一个 Worker 或 Node 容器承载公开、客户与管理入口。每个部署只有一个权威数据库：
-Workers 使用 D1，Node 使用 `$GMSHOP_DATA_DIR/gmshop.sqlite`。Workers 使用 KV、私有
-R2、Queues 与 Cron；Node 通过有界内存缓存、哈希化本地私有对象、SQLite 可靠队列和
+一个 Worker 或 Bun 容器承载公开、客户与管理入口。每个部署只有一个权威数据库：
+Workers 使用 D1，Bun 使用 `$GMSHOP_DATA_DIR/gmshop.sqlite`。Workers 使用 KV、私有
+R2、Queues 与 Cron；Bun 通过有界内存缓存、哈希化本地私有对象、SQLite 可靠队列和
 进程内调度器提供相同运行时接口。后台工作将目录同步、供应商采购与核验、交付、重试、
 保留清理和密钥轮换移出同步请求。供应商模块按“平台 + API 来源”同步一次目录，并在
 同一来源的可用账号池中自动选择采购账号；上游返回的内容仍通过统一交付记录发放。
@@ -155,7 +155,7 @@ bun run deploy
 `bun run predeploy` 负责远程资源准备、migration、Workers 构建及生成配置中的 D1/KV
 binding 注入。
 
-## 使用 Node 与 Docker 部署
+## 使用 Bun 与 Docker 部署
 
 公开 [GHCR 镜像](https://github.com/orgs/GMWalletApp/packages/container/package/gmshop-edge)
 支持 `linux/amd64` 和 `linux/arm64`，拉取公开镜像不需要登录 Registry。
@@ -219,8 +219,8 @@ docker compose pull
 docker compose up -d
 ```
 
-源码部署需要 Node.js 24，并使用 `bun run build:node` 构建、
-`bun run start:node` 运行。仓库维护的 `bun run data -- …` CLI 提供 `backup`、
+源码部署需要 Bun 1.3，并使用 `bun run build:bun` 构建、
+`bun run start:bun` 运行。仓库维护的 `bun run data -- …` CLI 提供 `backup`、
 `restore` 和 `import-cloudflare`；恢复和导入只接受全新或空目标，并在安装数据前完成
 完整性校验。
 
@@ -252,8 +252,6 @@ Personal Access Token，也不会强推或覆盖 Fork 独有的提交。如果�
 
 - [Bun](https://bun.sh/) 1.3 或更高版本
 - [Wrangler](https://developers.cloudflare.com/workers/wrangler/) 支持的本地运行环境
-- 从源码执行 `build:node` 与 `start:node` 需要 [Node.js](https://nodejs.org/) 24；
-  直接运行已发布 Docker 镜像则不需要宿主机 Node.js
 
 安装依赖并启动本地开发服务器：
 
@@ -280,7 +278,7 @@ bun run dev
 
 | 模块 | 技术 |
 | --- | --- |
-| 运行时 | Cloudflare Workers 或 Node/Nitro Docker |
+| 运行时 | Cloudflare Workers 或 Bun/Nitro Docker |
 | 应用 | React 19、TanStack Start/Router/Query/Table/Form |
 | UI | Tailwind CSS 4、shadcn/Radix |
 | 认证 | Better Auth |
@@ -303,7 +301,7 @@ bun run typecheck
 bun run test
 bun run check
 bun run build
-bun run build:node
+bun run build:bun
 ```
 
 每个 clone 执行一次 `bun run hooks:install`，即可启用本地 Lefthook Conventional
@@ -326,7 +324,8 @@ bun run seed:local
 自己的凭据并显式启用。此脚本仅接受 `--local`，不会清空已有数据，也不能写入远程 D1。
 
 只有在有意修改 Drizzle Schema 时才使用 `bun run db:generate`，并检查生成的 migration。
-日常开发只应用 migration，不重新生成全新安装基线。
+日常开发只应用 migration，不重新生成全新安装基线。在不启动 Vite、但需要导入生成消息的
+检查前，运行 `bun run generate-paraglide`；`src/paraglide` 由工具生成且已忽略。
 
 提交完整改动前，应在同一最终工作区运行质量门：
 
@@ -335,7 +334,7 @@ bun run typecheck
 bun run test
 bun run check
 bun run build
-bun run build:node
+bun run build:bun
 ```
 
 确定性自动化测试用于证明应用行为。真实支付、邮件、Telegram 和自动化 Provider smoke
@@ -354,7 +353,7 @@ bun run build:node
 - 私有 R2 对象必须通过 D1 权限记录解析，客户端不能选择 object key。
 - 金额以最小货币单位的十进制整数字符串保存，计算不使用浮点数。
 - schema 或保留策略变更前备份 D1/R2，并实际测试恢复，不能把未经恢复验证的备份视为完成。
-- 容器升级前备份完整 Node 数据目录；使用仓库维护的数据 CLI，不要复制运行中的 SQLite
+- 容器升级前备份完整 Bun 数据目录；使用仓库维护的数据 CLI，不要复制运行中的 SQLite
   文件。
 
 ## 许可证

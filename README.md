@@ -5,7 +5,7 @@
 [简体中文](README.zh-CN.md) · English
 
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/license-GPL--3.0--or--later-3DA639.svg?style=flat-square)](LICENSE)
-[![Runtimes: Workers + Node](https://img.shields.io/badge/runtimes-Workers%20%2B%20Node-F38020.svg?style=flat-square)](#architecture)
+[![Runtimes: Workers + Bun](https://img.shields.io/badge/runtimes-Workers%20%2B%20Bun-F38020.svg?style=flat-square)](#architecture)
 [![Bun](https://img.shields.io/badge/toolchain-Bun-000000.svg?style=flat-square&logo=bun&logoColor=white)](https://bun.sh/)
 [![TypeScript](https://img.shields.io/badge/language-TypeScript-3178C6.svg?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React 19](https://img.shields.io/badge/React-19-61DAFB.svg?style=flat-square&logo=react&logoColor=white)](https://react.dev/)
@@ -17,7 +17,7 @@
 [![Locales: 2](https://img.shields.io/badge/locales-2-7C3AED.svg?style=flat-square)](project.inlang/settings.json)
 
 GMShop Edge is a self-hosted, single-deployment, single-tenant digital-goods
-storefront for Cloudflare Workers or a Node/Nitro Docker container. One
+storefront for Cloudflare Workers or a Bun/Nitro Docker container. One
 deployment provides a responsive public shop, customer accounts, checkout and
 fulfillment, and a permission-driven administration console.
 
@@ -97,7 +97,7 @@ flowchart LR
     end
 
     Cloudflare["Cloudflare services<br/>D1 · KV · R2 · Queues · Cron"]
-    Node["Node services<br/>SQLite · local objects · durable queue · scheduler"]
+    Bun["Bun services<br/>SQLite · local objects · durable queue · scheduler"]
     Providers["Business providers<br/>Checkout · email · automation"]
     Upstreams["Upstream suppliers<br/>ACG · Dujiao Next"]
 
@@ -106,17 +106,17 @@ flowchart LR
     Commerce <--> Cloudflare
     Suppliers <--> Cloudflare
     Delivery <--> Cloudflare
-    Commerce <--> Node
-    Suppliers <--> Node
-    Delivery <--> Node
+    Commerce <--> Bun
+    Suppliers <--> Bun
+    Delivery <--> Bun
     Delivery --> Providers
     Suppliers <--> Upstreams
 ```
 
-One Worker or Node container owns the public, customer, and administrative
+One Worker or Bun container owns the public, customer, and administrative
 surfaces. Each deployment has one authoritative database: D1 on Workers or
-`$GMSHOP_DATA_DIR/gmshop.sqlite` on Node. Workers use KV, private R2, Queues,
-and Cron; Node provides the same runtime interfaces with a bounded memory
+`$GMSHOP_DATA_DIR/gmshop.sqlite` on Bun. Workers use KV, private R2, Queues,
+and Cron; Bun provides the same runtime interfaces with a bounded memory
 cache, hashed local private objects, a durable SQLite queue, and an in-process
 scheduler. Background work keeps catalog synchronization, supplier purchasing
 and reconciliation, fulfillment, retries, retention, and key rotation outside
@@ -181,7 +181,7 @@ The deployment declares these bindings:
 remote resources. `bun run predeploy` performs remote preparation, migrations,
 the Workers build, and generated D1/KV binding injection.
 
-## Deploy with Node and Docker
+## Deploy with Bun and Docker
 
 The public [GHCR package](https://github.com/orgs/GMWalletApp/packages/container/package/gmshop-edge)
 supports `linux/amd64` and `linux/arm64`; no registry login is required.
@@ -247,8 +247,8 @@ docker compose pull
 docker compose up -d
 ```
 
-For source deployments, use Node.js 24 with `bun run build:node` and
-`bun run start:node`. The maintained `bun run data -- …` CLI provides
+For source deployments, use Bun 1.3 with `bun run build:bun` and
+`bun run start:bun`. The maintained `bun run data -- …` CLI provides
 `backup`, `restore`, and `import-cloudflare`; restore and import accept only a
 new or empty target and validate integrity before installing data.
 
@@ -286,8 +286,6 @@ automatic synchronization can continue.
 - [Bun](https://bun.sh/) 1.3 or later
 - A local environment supported by
   [Wrangler](https://developers.cloudflare.com/workers/wrangler/)
-- [Node.js](https://nodejs.org/) 24 for `build:node` and `start:node` (not
-  required when running the published Docker image)
 
 Install dependencies and start the local development server:
 
@@ -320,7 +318,7 @@ After installation:
 
 | Area | Technology |
 | --- | --- |
-| Runtime | Cloudflare Workers or Node/Nitro Docker |
+| Runtime | Cloudflare Workers or Bun/Nitro Docker |
 | Application | React 19, TanStack Start/Router/Query/Table/Form |
 | UI | Tailwind CSS 4, shadcn/Radix |
 | Authentication | Better Auth |
@@ -343,7 +341,7 @@ bun run typecheck
 bun run test
 bun run check
 bun run build
-bun run build:node
+bun run build:bun
 ```
 
 Run `bun run hooks:install` once per clone to enable the local Lefthook
@@ -371,7 +369,9 @@ rows, and cannot write to a remote D1 database.
 
 Use `bun run db:generate` only when intentionally changing the Drizzle schema,
 then review the generated migration. Normal development applies migrations; it
-does not regenerate the clean-install baseline.
+does not regenerate the clean-install baseline. Run `bun run generate-paraglide`
+before checks that import generated messages without starting Vite;
+`src/paraglide` is generated and ignored.
 
 Before submitting a completed change, run the final quality gate on the same
 working tree:
@@ -381,7 +381,7 @@ bun run typecheck
 bun run test
 bun run check
 bun run build
-bun run build:node
+bun run build:bun
 ```
 
 Deterministic automated tests cover application behavior. Real payment, email,
@@ -406,7 +406,7 @@ instance. Its machine-readable source is [OpenAPI YAML](public/openapi.yaml).
   with floating point.
 - Back up D1 and R2 before schema or retention changes, and test recovery rather
   than treating backups as complete when they have not been restored.
-- Back up the complete Node data directory before container upgrades; use the
+- Back up the complete Bun data directory before container upgrades; use the
   maintained data CLI rather than copying a live SQLite file.
 
 ## License

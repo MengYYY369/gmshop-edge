@@ -9,7 +9,7 @@ import { DomainError } from "#/lib/domain-error";
 import { loadRuntimeConfig } from "#/server/runtime-config";
 
 const callbackSchema = z.object({
-	jobId: z.string().uuid(),
+	jobId: z.uuid(),
 	status: z.enum(["running", "succeeded", "failed"]),
 	providerJobId: z.string().trim().min(1).max(255).optional(),
 	runUrl: z.url().max(2_000).optional(),
@@ -17,8 +17,8 @@ const callbackSchema = z.object({
 });
 
 const artifactSchema = z.object({
-	jobId: z.string().uuid(),
-	artifactId: z.string().uuid(),
+	jobId: z.uuid(),
+	artifactId: z.uuid(),
 	fileName: z
 		.string()
 		.trim()

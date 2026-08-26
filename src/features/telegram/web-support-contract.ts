@@ -1,20 +1,18 @@
 import Bowser from "bowser";
 import { z } from "zod";
 
-const publicKeySchema = z
-	.object({
-		kty: z.literal("RSA"),
-		n: z.string().min(300).max(800),
-		e: z.string().min(1).max(12),
-		alg: z.literal("RSA-OAEP-256").optional(),
-		key_ops: z.array(z.string()).max(4).optional(),
-		ext: z.boolean().optional(),
-	})
-	.passthrough();
+const publicKeySchema = z.looseObject({
+	kty: z.literal("RSA"),
+	n: z.string().min(300).max(800),
+	e: z.string().min(1).max(12),
+	alg: z.literal("RSA-OAEP-256").optional(),
+	key_ops: z.array(z.string()).max(4).optional(),
+	ext: z.boolean().optional(),
+});
 
 export const webSupportConversationSchema = z.object({
-	email: z.string().trim().email().max(254).optional(),
-	visitorId: z.string().uuid(),
+	email: z.string().trim().pipe(z.email().max(254)).optional(),
+	visitorId: z.uuid(),
 	publicKeyJwk: publicKeySchema,
 	fingerprint: z
 		.object({
@@ -32,12 +30,12 @@ export const webSupportConversationSchema = z.object({
 });
 
 export const webSupportMessageSchema = z.object({
-	clientMessageId: z.string().uuid(),
+	clientMessageId: z.uuid(),
 	text: z.string().trim().min(1).max(3500),
 });
 
 export const webSupportAckSchema = z.object({
-	ids: z.array(z.string().uuid()).min(1).max(100),
+	ids: z.array(z.uuid()).min(1).max(100),
 });
 
 export function parseDevice(userAgent: string | null) {

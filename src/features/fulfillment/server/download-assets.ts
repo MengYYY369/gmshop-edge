@@ -2,8 +2,8 @@ import { z } from "zod";
 import { DomainError } from "#/lib/domain-error";
 
 const assetInputSchema = z.object({
-	productId: z.string().uuid(),
-	componentId: z.string().uuid(),
+	productId: z.uuid(),
+	componentId: z.uuid(),
 	fileName: z
 		.string()
 		.trim()

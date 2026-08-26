@@ -28,21 +28,19 @@ const syncStatusSettingSchema = z.object({
 });
 const providerRateSchema = z.union([
 	z.string().regex(exchangeRatePattern),
-	z.number().positive().finite(),
+	z.number().positive(),
 ]);
-const providerPayloadSchema = z
-	.object({
-		success: z.boolean().optional(),
-		rates: z.record(z.string(), providerRateSchema).optional(),
-		quotes: z.record(z.string(), providerRateSchema).optional(),
-		error: z
-			.object({
-				code: z.union([z.string(), z.number()]).optional(),
-				type: z.string().optional(),
-			})
-			.optional(),
-	})
-	.passthrough();
+const providerPayloadSchema = z.looseObject({
+	success: z.boolean().optional(),
+	rates: z.record(z.string(), providerRateSchema).optional(),
+	quotes: z.record(z.string(), providerRateSchema).optional(),
+	error: z
+		.object({
+			code: z.union([z.string(), z.number()]).optional(),
+			type: z.string().optional(),
+		})
+		.optional(),
+});
 
 export type ExchangeRateSyncSettings = {
 	enabled: boolean;

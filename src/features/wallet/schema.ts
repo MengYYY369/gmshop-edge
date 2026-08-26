@@ -9,7 +9,7 @@ export const walletAmountSchema = z
 	});
 
 export const walletAdjustmentSchema = z.object({
-	userId: z.string().uuid(),
+	userId: z.uuid(),
 	direction: z.enum(["credit", "debit"]),
 	amountMinor: walletAmountSchema.refine((value) => value !== "0"),
 	reason: z.string().trim().min(1).max(500),
@@ -18,7 +18,7 @@ export const walletAdjustmentSchema = z.object({
 
 export const walletTopupSchema = z.object({
 	amountMinor: walletAmountSchema.refine((value) => value !== "0"),
-	channelId: z.string().uuid(),
+	channelId: z.uuid(),
 	idempotencyKey: z.string().trim().min(8).max(200),
 	paymentCurrency: z
 		.string()

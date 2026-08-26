@@ -12,7 +12,13 @@ import {
 	QrCode,
 } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
-import { type FormEvent, type ReactNode, useEffect, useRef, useState } from "react";
+import {
+	type ReactNode,
+	type SyntheticEvent,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
 import { toast } from "sonner";
 import { ModalForm } from "#/components/pro/form";
 import { statusLabel } from "#/components/status-badge";
@@ -42,7 +48,6 @@ import {
 	getStoreOrderFn,
 	retryStorePaymentFn,
 } from "#/features/storefront/server/functions";
-import { syncPaymentStatusFn } from "#/features/storefront/server/payment-sync-fn";
 import { formatDateTime, formatMinorAmountWithSymbol } from "#/lib/format";
 import { m } from "#/paraglide/messages";
 
@@ -107,14 +112,7 @@ export function StorefrontOrderPage({
 		const latestPayment = order.data.payments[0];
 		if (!latestPayment || latestPayment.status !== "pending") return;
 		hasAttemptedSyncRef.current = true;
-		void syncPaymentStatusFn({
-			data: {
-				orderNumber,
-				email: accountOrder ? undefined : guestEmail,
-			},
-		}).then((result) => {
-			if (result.synced) void order.refetch();
-		});
+		void order.refetch();
 	}, [order.data, orderNumber, guestEmail, accountOrder]);
 	const retryPayment = useMutation({
 		mutationFn: retryStorePaymentFn,
@@ -642,7 +640,7 @@ function GuestOrderAccess({
 }) {
 	const [email, setEmail] = useState(defaultEmail);
 	const access = storeOrderLookupSchema.safeParse({ orderNumber, email });
-	function submit(event: FormEvent) {
+	function submit(event: SyntheticEvent<HTMLFormElement, SubmitEvent>) {
 		event.preventDefault();
 		if (access.success) onAccess(access.data.email);
 	}

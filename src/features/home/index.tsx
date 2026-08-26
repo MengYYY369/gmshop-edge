@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Boxes, Search } from "lucide-react";
-import { type FormEvent, useEffect, useState } from "react";
+import { type SyntheticEvent, useEffect, useState } from "react";
 import type { z } from "zod";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
@@ -41,7 +41,7 @@ export function HomePage({
 	useEffect(() => {
 		trackCommerceEvent({ eventType: "catalog_viewed" });
 	}, []);
-	function submit(event: FormEvent) {
+	function submit(event: SyntheticEvent<HTMLFormElement, SubmitEvent>) {
 		event.preventDefault();
 		void navigate({
 			search: { ...searchParams, search: draftSearch.trim() },

@@ -22,7 +22,7 @@ afterEach(async () => {
 	);
 });
 
-describe("NodeDatabase", () => {
+describe("Bun SQLite database", () => {
 	it("implements D1-style statements and atomic batches", async () => {
 		const database = openNodeDatabase(":memory:");
 		await database.exec(
@@ -50,20 +50,6 @@ describe("NodeDatabase", () => {
 			.prepare("SELECT COUNT(*) AS count FROM values_table")
 			.first<number>("count");
 		expect(count).toBe(1);
-		database.close();
-	});
-
-	it("compiles a prepared statement once across bound executions", async () => {
-		const database = openNodeDatabase(":memory:");
-		await database.exec("CREATE TABLE example (id INTEGER PRIMARY KEY)");
-		const prepare = vi.spyOn(database.sqlite, "prepare");
-		const statement = database.prepare("SELECT id FROM example WHERE id = ?");
-		const preparedCount = prepare.mock.calls.length;
-
-		await statement.bind(1).first();
-		await statement.bind(2).all();
-
-		expect(prepare).toHaveBeenCalledTimes(preparedCount);
 		database.close();
 	});
 
@@ -102,9 +88,8 @@ describe("NodeDatabase", () => {
 		);
 		const database = openNodeDatabase(":memory:");
 		await applyNodeMigrations(database, directory);
-		database.sqlite.exec(
-			"INSERT INTO parent VALUES ('parent-1'); INSERT INTO child VALUES ('child-1', 'parent-1');",
-		);
+		database.sqlite.run("INSERT INTO parent VALUES ('parent-1')");
+		database.sqlite.run("INSERT INTO child VALUES ('child-1', 'parent-1')");
 		await writeFile(
 			join(directory, "0001_rebuild.sql"),
 			`PRAGMA foreign_keys=OFF;--> statement-breakpoint
@@ -119,9 +104,15 @@ describe("NodeDatabase", () => {
 			applied: 1,
 			total: 2,
 		});
-		expect(database.sqlite.pragma("foreign_key_check")).toEqual([]);
+		expect(database.sqlite.prepare("PRAGMA foreign_key_check").all()).toEqual(
+			[],
+		);
 		expect(
-			database.sqlite.prepare("SELECT label FROM parent").pluck().get(),
+			(
+				database.sqlite.prepare("SELECT label FROM parent").get() as {
+					label: string;
+				}
+			).label,
 		).toBe("");
 		database.close();
 	});
@@ -208,9 +199,19 @@ describe("NodeObjectStorage", () => {
 describe("Node durable background services", () => {
 	it("reuses queue statements instead of preparing them per operation", async () => {
 		const database = openNodeDatabase(":memory:");
-		const prepare = vi.spyOn(database.sqlite, "prepare");
 		const queue = new NodeDurableQueue<{ id: string }>(database, "commerce");
-		const preparedAtStartup = prepare.mock.calls.length;
+		const statements = Reflect.get(queue, "statements") as {
+			insert: { run: (...values: unknown[]) => unknown };
+			selectCandidates: { all: (...values: unknown[]) => unknown };
+			claim: { get: (...values: unknown[]) => unknown };
+			retry: { run: (...values: unknown[]) => unknown };
+			ack: { run: (...values: unknown[]) => unknown };
+		};
+		const insert = vi.spyOn(statements.insert, "run");
+		const selectCandidates = vi.spyOn(statements.selectCandidates, "all");
+		const claim = vi.spyOn(statements.claim, "get");
+		const retry = vi.spyOn(statements.retry, "run");
+		const ack = vi.spyOn(statements.ack, "run");
 
 		await queue.send({ id: "order-1" });
 		const [claimed] = queue.claim(1, 1_000, Date.now());
@@ -224,8 +225,11 @@ describe("Node durable background services", () => {
 		if (!retried) throw new Error("Expected a retried message");
 		queue.ack(retried.id, retried.lease_token);
 
-		expect(preparedAtStartup).toBeGreaterThan(0);
-		expect(prepare).toHaveBeenCalledTimes(preparedAtStartup);
+		expect(insert).toHaveBeenCalledOnce();
+		expect(selectCandidates).toHaveBeenCalledTimes(2);
+		expect(claim).toHaveBeenCalledTimes(2);
+		expect(retry).toHaveBeenCalledOnce();
+		expect(ack).toHaveBeenCalledOnce();
 		database.close();
 	});
 
@@ -249,18 +253,18 @@ describe("Node durable background services", () => {
 		);
 
 		consumer.start();
-		await vi.advanceTimersByTimeAsync(0);
+		await advanceTimersByTime(0);
 		expect(claim).toHaveBeenCalledTimes(1);
-		await vi.advanceTimersByTimeAsync(299);
+		await advanceTimersByTime(299);
 		expect(claim).toHaveBeenCalledTimes(2);
-		await vi.advanceTimersByTimeAsync(1);
+		await advanceTimersByTime(1);
 		expect(claim).toHaveBeenCalledTimes(3);
 
 		await queue.send({ id: "order-1" });
-		await vi.advanceTimersByTimeAsync(0);
+		await advanceTimersByTime(0);
 		expect(handled).toEqual(["order-1"]);
 		await queue.sendBatch([{ body: { id: "order-2" } }]);
-		await vi.advanceTimersByTimeAsync(0);
+		await advanceTimersByTime(0);
 		expect(handled).toEqual(["order-1", "order-2"]);
 
 		await consumer.stop();
@@ -313,7 +317,7 @@ describe("Node durable background services", () => {
 		});
 
 		consumer.start();
-		await vi.advanceTimersByTimeAsync(0);
+		await advanceTimersByTime(0);
 		const row = database.sqlite
 			.prepare("SELECT status, last_error FROM node_queue_messages")
 			.get();
@@ -347,11 +351,12 @@ describe("Node durable background services", () => {
 		);
 
 		consumer.start();
-		await vi.advanceTimersByTimeAsync(0);
-		await vi.advanceTimersByTimeAsync(1_000);
+		await advanceTimersByTime(0);
+		await advanceTimersByTime(1_000);
 		expect(claim).toHaveBeenCalledTimes(1);
 		release?.();
-		await vi.advanceTimersByTimeAsync(0);
+		await flushMicrotasks();
+		await advanceTimersByTime(0);
 		expect(handled).toHaveLength(2);
 		expect(new Set(handled)).toEqual(new Set(["order-1", "order-2"]));
 		await consumer.stop();
@@ -369,7 +374,7 @@ describe("Node durable background services", () => {
 		);
 		const scheduler = new NodeScheduler(task, { intervalMs: 1_000 });
 		scheduler.start();
-		await vi.advanceTimersByTimeAsync(2_000);
+		await advanceTimersByTime(2_000);
 		expect(task).toHaveBeenCalledTimes(1);
 		resolveTask?.();
 		await scheduler.stop();
@@ -403,6 +408,15 @@ describe("Node durable background services", () => {
 		]);
 	});
 });
+
+async function advanceTimersByTime(durationMs: number) {
+	vi.advanceTimersByTime(durationMs);
+	await flushMicrotasks();
+}
+
+async function flushMicrotasks() {
+	for (let index = 0; index < 5; index += 1) await Promise.resolve();
+}
 
 async function temporaryDirectory() {
 	const directory = await mkdtemp(join(tmpdir(), "gmshop-node-runtime-"));

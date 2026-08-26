@@ -93,9 +93,9 @@ export const buildDefinitionListSchema = z.array(definitionSchema).max(50);
 
 export const saveBuildConfigurationSchema = z
 	.object({
-		id: z.string().uuid().optional(),
-		productId: z.string().uuid(),
-		deliveryComponentId: z.string().uuid(),
+		id: z.uuid().optional(),
+		productId: z.uuid(),
+		deliveryComponentId: z.uuid(),
 		provider: z.enum(buildProviders),
 		baseUrl: z.url().max(500),
 		repositoryOwner: z
@@ -137,17 +137,17 @@ export const saveBuildConfigurationSchema = z
 	});
 
 export const buildConfigurationProductSchema = z.object({
-	productId: z.string().uuid(),
-	deliveryComponentId: z.string().uuid().optional(),
-	id: z.string().uuid().optional(),
+	productId: z.uuid(),
+	deliveryComponentId: z.uuid().optional(),
+	id: z.uuid().optional(),
 });
 
 export const buildConfigurationListSchema = z
-	.object({ productId: z.string().uuid().optional() })
+	.object({ productId: z.uuid().optional() })
 	.default({});
 
 export const buildConfigurationIdSchema = z.object({
-	id: z.string().uuid(),
+	id: z.uuid(),
 });
 
 const buildInputValueSchema = z.union([
@@ -159,8 +159,8 @@ const buildInputValueSchema = z.union([
 
 export const createBuildJobSchema = z.object({
 	orderNumber: z.string().trim().min(8).max(80),
-	entitlementId: z.string().uuid(),
-	methodId: z.string().uuid(),
+	entitlementId: z.uuid(),
+	methodId: z.uuid(),
 	idempotencyKey: z.string().trim().min(8).max(200),
 	notificationChannel: z.enum(["none", "email"]).default("none"),
 	authorizationValues: z.record(z.string(), buildInputValueSchema).default({}),

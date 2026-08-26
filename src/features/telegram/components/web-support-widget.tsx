@@ -2,8 +2,8 @@
 
 import { Headphones, LoaderCircle, Send, X } from "lucide-react";
 import {
-	type FormEvent,
 	type KeyboardEvent,
+	type SyntheticEvent,
 	useCallback,
 	useEffect,
 	useRef,
@@ -148,7 +148,9 @@ export function WebSupportWidget() {
 
 	if (!available) return null;
 
-	async function startConversation(event: FormEvent) {
+	async function startConversation(
+		event: SyntheticEvent<HTMLFormElement, SubmitEvent>,
+	) {
 		event.preventDefault();
 		setBusy(true);
 		setError(null);
@@ -190,7 +192,9 @@ export function WebSupportWidget() {
 		}
 	}
 
-	async function sendMessage(event: FormEvent) {
+	async function sendMessage(
+		event: SyntheticEvent<HTMLFormElement, SubmitEvent>,
+	) {
 		event.preventDefault();
 		const value = text.trim();
 		if (!value || busy) return;

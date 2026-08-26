@@ -2,7 +2,7 @@
 
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Search, ShieldCheck } from "lucide-react";
-import { type FormEvent, useState } from "react";
+import { type SyntheticEvent, useState } from "react";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
@@ -19,7 +19,7 @@ export function OrderLookupPage() {
 	const [email, setEmail] = useState("");
 	const access = storeOrderLookupSchema.safeParse({ orderNumber, email });
 	const canSubmit = access.success;
-	function submit(event: FormEvent) {
+	function submit(event: SyntheticEvent<HTMLFormElement, SubmitEvent>) {
 		event.preventDefault();
 		if (!access.success) return;
 		writeGuestOrderEmail(access.data.orderNumber, access.data.email);

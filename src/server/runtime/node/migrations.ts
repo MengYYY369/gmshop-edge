@@ -38,7 +38,7 @@ export async function applyNodeMigrations(
 	const knownNames = new Set(migrations.map(({ name }) => name));
 
 	const apply = database.sqlite.transaction(() => {
-		database.sqlite.exec(`CREATE TABLE IF NOT EXISTS node_migrations (
+		database.sqlite.run(`CREATE TABLE IF NOT EXISTS node_migrations (
 			name TEXT PRIMARY KEY NOT NULL,
 			checksum TEXT NOT NULL,
 			applied_at INTEGER NOT NULL
@@ -67,14 +67,14 @@ export async function applyNodeMigrations(
 			}
 			for (const statement of splitMigration(migration.sql)) {
 				if (isForeignKeysPragma(statement)) continue;
-				database.sqlite.exec(statement);
+				database.sqlite.run(normalizeTemporaryTableChecks(statement));
 			}
 			record.run(migration.name, migration.checksum, Date.now());
 			appliedCount += 1;
 		}
-		const foreignKeyViolations = database.sqlite.pragma(
-			"foreign_key_check",
-		) as unknown[];
+		const foreignKeyViolations = database.sqlite
+			.prepare("PRAGMA foreign_key_check")
+			.all();
 		if (foreignKeyViolations.length > 0)
 			throw new Error(
 				`Migration foreign-key check failed (${foreignKeyViolations.length} violation(s))`,
@@ -83,12 +83,16 @@ export async function applyNodeMigrations(
 	});
 
 	const foreignKeysEnabled =
-		database.sqlite.pragma("foreign_keys", { simple: true }) === 1;
-	if (foreignKeysEnabled) database.sqlite.pragma("foreign_keys = OFF");
+		(
+			database.sqlite.prepare("PRAGMA foreign_keys").get() as
+				| { foreign_keys: number }
+				| undefined
+		)?.foreign_keys === 1;
+	if (foreignKeysEnabled) database.sqlite.run("PRAGMA foreign_keys = OFF");
 	try {
 		return { applied: apply(), total: migrations.length };
 	} finally {
-		if (foreignKeysEnabled) database.sqlite.pragma("foreign_keys = ON");
+		if (foreignKeysEnabled) database.sqlite.run("PRAGMA foreign_keys = ON");
 	}
 }
 
@@ -101,6 +105,16 @@ function splitMigration(sql: string) {
 
 function isForeignKeysPragma(statement: string) {
 	return /^PRAGMA\s+foreign_keys\s*=\s*(?:ON|OFF)\s*;?$/iu.test(statement);
+}
+
+function normalizeTemporaryTableChecks(statement: string) {
+	const temporaryTable = /^CREATE\s+TABLE\s+[`"](__new_[^`"]+)[`"]\s*\(/iu.exec(
+		statement,
+	)?.[1];
+	if (!temporaryTable) return statement;
+	return statement
+		.replaceAll(`"${temporaryTable}".`, "")
+		.replaceAll(`\`${temporaryTable}\`.`, "");
 }
 
 function sha256(value: string) {

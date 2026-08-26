@@ -209,7 +209,12 @@ async function copyToClipboard(text: string) {
 	textarea.select();
 
 	try {
-		if (!document.execCommand("copy"))
+		// Keep the legacy copy path for browsers where the asynchronous Clipboard
+		// API is unavailable, without coupling the code to its deprecated DOM type.
+		const legacyCopy = Reflect.get(document, "execCommand") as
+			| ((commandId: string) => boolean)
+			| undefined;
+		if (!legacyCopy?.call(document, "copy"))
 			throw new Error("Copy command was rejected.");
 	} finally {
 		document.body.removeChild(textarea);
