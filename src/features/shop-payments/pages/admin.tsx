@@ -404,7 +404,7 @@ function newChannelValues(
 		epusdtBaseUrl: "",
 		epusdtPid: "",
 		epusdtSecretKey: "",
-		epusdtPaymentMethod: provider === "epay" ? "alipay" : "",
+		epusdtPaymentMethod: provider === "epay" || provider === "epay_v1" ? "alipay" : "",
 		alipayAppId: "",
 		alipaySellerId: "",
 		alipayPrivateKeyPem: "",
@@ -579,16 +579,16 @@ function channelFormSchema(editing: boolean) {
 			required: !editing,
 			extra,
 			formItemProps: { className: "sm:col-span-2" },
-			hidden: (values: Record<string, unknown>) =>
-				values.type !== "gmpay" && values.type !== "epay",
+hidden: (values: Record<string, unknown>) =>
+			values.type !== "gmpay" && values.type !== "epay" && values.type !== "epay_v1",
 		},
 		{
 			name: "epusdtPid",
 			label: m.payment_channels_epusdt_pid(),
 			required: !editing,
 			extra,
-			hidden: (values: Record<string, unknown>) =>
-				values.type !== "gmpay" && values.type !== "epay",
+hidden: (values: Record<string, unknown>) =>
+			values.type !== "gmpay" && values.type !== "epay" && values.type !== "epay_v1",
 		},
 		{
 			name: "epusdtSecretKey",
@@ -596,15 +596,15 @@ function channelFormSchema(editing: boolean) {
 			valueType: "password" as const,
 			required: !editing,
 			extra,
-			hidden: (values: Record<string, unknown>) =>
-				values.type !== "gmpay" && values.type !== "epay",
+hidden: (values: Record<string, unknown>) =>
+			values.type !== "gmpay" && values.type !== "epay" && values.type !== "epay_v1",
 		},
 		{
 			name: "epusdtPaymentMethod",
 			label: m.payment_channels_epusdt_payment_method(),
 			tooltip: m.payment_channels_epusdt_payment_method_hint(),
 			required: true,
-			hidden: (values: Record<string, unknown>) => values.type !== "epay",
+			hidden: (values: Record<string, unknown>) => values.type !== "epay" && values.type !== "epay_v1",
 		},
 		{
 			name: "defaultToken",
@@ -662,10 +662,11 @@ function channelValues(channel: Channel) {
 function paymentProviderLabel(
 	provider: (typeof paymentProviderValues)[number],
 ) {
-	if (provider === "gmpay") return "GMpay";
-	if (provider === "cryptomus") return "Cryptomus";
-	if (provider === "epay") return "EPay";
-	if (provider === "alipay_page" || provider === "alipay_wap") return "Alipay";
+if (provider === "gmpay") return "GMpay";
+if (provider === "cryptomus") return "Cryptomus";
+if (provider === "epay") return "EPay";
+if (provider === "epay_v1") return "EPay V1";
+if (provider === "alipay_page" || provider === "alipay_wap") return "Alipay";
 	if (provider === "wechat_native" || provider === "wechat_h5")
 		return "WeChat Pay";
 	return "Stripe";
@@ -678,6 +679,7 @@ const paymentProviderMenu = [
 	{ family: "stripe", provider: "stripe", label: "Stripe" },
 	{ family: "cryptomus", provider: "cryptomus", label: "Cryptomus" },
 	{ family: "epay", provider: "epay", label: "EPay" },
+	{ family: "epay_v1", provider: "epay_v1", label: "EPay V1" },
 ] as const;
 
 const paymentTypeOptions = paymentProviderMenu.map((item) => ({
@@ -716,7 +718,9 @@ function paymentChannelInputFromForm(
 		epusdtPid: String(values.epusdtPid ?? ""),
 		epusdtSecretKey: String(values.epusdtSecretKey ?? ""),
 		epusdtPaymentMethod:
-			provider === "epay" ? String(values.epusdtPaymentMethod ?? "alipay") : "",
+			provider === "epay" || provider === "epay_v1"
+				? String(values.epusdtPaymentMethod ?? "alipay")
+				: "",
 		alipayAppId: String(values.alipayAppId ?? ""),
 		alipaySellerId: String(values.alipaySellerId ?? ""),
 		alipayPrivateKeyPem: String(values.alipayPrivateKeyPem ?? ""),

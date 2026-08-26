@@ -78,7 +78,20 @@ const createPaymentSchema = z.object({
 		.optional(),
 	successUrl: z.url(),
 	cancelUrl: z.url(),
-	payerIp: z.ipv4().nullable().default(null),
+	payerIp: z
+		.string()
+		.trim()
+		.max(45)
+		.refine((val) => {
+			if (!val) return true;
+			// IPv4
+			if (/^(\d{1,3}\.){3}\d{1,3}$/.test(val)) return true;
+			// IPv6
+			if (/^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/.test(val)) return true;
+			return false;
+		}, { message: "Invalid IP address" })
+		.nullable()
+		.default(null),
 	payerMobile: z.boolean().default(false),
 });
 

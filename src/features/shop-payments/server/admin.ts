@@ -6,6 +6,7 @@ import {
 	alipayCredentialSchema,
 	cryptomusCredentialSchema,
 	epayCredentialSchema,
+	epayV1CredentialSchema,
 	gmpayCredentialSchema,
 	type PaymentProvider,
 	paymentProviderFamily,
@@ -466,37 +467,41 @@ async function channelCredential(
 	db: D1Database,
 ) {
 	let value = credentialValue(data);
-	if (
-		!value &&
-		current &&
-		(data.provider === "gmpay" || data.provider === "epay")
-	) {
-		const runtime = await loadRuntimeConfig(db);
-		if (!runtime.commerceSecret)
-			throw new DomainError(
-				"payment_secret_unavailable",
-				503,
-				"Payment configuration unavailable",
-			);
-		const schema =
-			data.provider === "gmpay" ? gmpayCredentialSchema : epayCredentialSchema;
-		const currentValue = schema.parse(
-			JSON.parse(
-				await decryptSecret(
-					current,
-					runtime.commerceSecret,
-					"payment-credential",
-				),
-			),
+if (
+	!value &&
+	current &&
+	(data.provider === "gmpay" || data.provider === "epay" || data.provider === "epay_v1")
+) {
+	const runtime = await loadRuntimeConfig(db);
+	if (!runtime.commerceSecret)
+		throw new DomainError(
+			"payment_secret_unavailable",
+			503,
+			"Payment configuration unavailable",
 		);
-		value =
-			data.provider === "epay"
-				? epayCredentialSchema.parse({
-						...currentValue,
-						paymentMethod: data.epusdtPaymentMethod,
-					})
-				: currentValue;
-	}
+	const schema =
+		data.provider === "gmpay"
+			? gmpayCredentialSchema
+			: data.provider === "epay_v1"
+				? epayV1CredentialSchema
+				: epayCredentialSchema;
+	const currentValue = schema.parse(
+		JSON.parse(
+			await decryptSecret(
+				current,
+				runtime.commerceSecret,
+				"payment-credential",
+			),
+		),
+	);
+	value =
+		data.provider === "epay" || data.provider === "epay_v1"
+			? (data.provider === "epay_v1" ? epayV1CredentialSchema : epayCredentialSchema).parse({
+					...currentValue,
+					paymentMethod: data.epusdtPaymentMethod,
+				})
+			: currentValue;
+}
 	if (!value) {
 		if (current) return current;
 		throw new DomainError(

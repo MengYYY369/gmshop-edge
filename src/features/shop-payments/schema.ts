@@ -3,6 +3,7 @@ import {
 	alipayCredentialSchema,
 	cryptomusCredentialSchema,
 	epayCredentialSchema,
+	epayV1CredentialSchema,
 	gmpayCredentialSchema,
 	paymentProviderValues,
 	stripeCredentialSchema,
@@ -170,31 +171,33 @@ export const paymentChannelInputSchema = z
 				);
 			return;
 		}
-		const changingEpusdt = Boolean(
-			value.epusdtBaseUrl || value.epusdtPid || value.epusdtSecretKey,
-		);
-		if (!value.id || changingEpusdt) {
-			const schema =
-				value.provider === "gmpay"
-					? gmpayCredentialSchema
+	const changingEpusdt = Boolean(
+		value.epusdtBaseUrl || value.epusdtPid || value.epusdtSecretKey,
+	);
+	if (!value.id || changingEpusdt) {
+		const schema =
+			value.provider === "gmpay"
+				? gmpayCredentialSchema
+				: value.provider === "epay_v1"
+					? epayV1CredentialSchema
 					: epayCredentialSchema;
-			addCredentialIssues(
-				schema.safeParse({
-					baseUrl: value.epusdtBaseUrl,
-					pid: value.epusdtPid,
-					secretKey: value.epusdtSecretKey,
-					paymentMethod: value.epusdtPaymentMethod,
-				}),
-				{
-					baseUrl: "epusdtBaseUrl",
-					pid: "epusdtPid",
-					secretKey: "epusdtSecretKey",
-					paymentMethod: "epusdtPaymentMethod",
-				},
-				context,
-			);
-		}
-	});
+		addCredentialIssues(
+			schema.safeParse({
+				baseUrl: value.epusdtBaseUrl,
+				pid: value.epusdtPid,
+				secretKey: value.epusdtSecretKey,
+				paymentMethod: value.epusdtPaymentMethod,
+			}),
+			{
+				baseUrl: "epusdtBaseUrl",
+				pid: "epusdtPid",
+				secretKey: "epusdtSecretKey",
+				paymentMethod: "epusdtPaymentMethod",
+			},
+			context,
+		);
+	}
+});
 
 type CredentialParseResult =
 	| { success: true }

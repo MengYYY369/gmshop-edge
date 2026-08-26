@@ -49,7 +49,7 @@ function paymentChannelFieldError(field: string, provider: string) {
 		case "epusdtBaseUrl":
 			return m.payment_channels_validation_service_url();
 		case "epusdtPid":
-			return provider === "epay"
+			return provider === "epay" || provider === "epay_v1"
 				? m.payment_channels_validation_epay_pid()
 				: m.payment_channels_validation_pid();
 		case "epusdtSecretKey":

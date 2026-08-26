@@ -6,6 +6,7 @@ export const paymentProviderValues = [
 	"cryptomus",
 	"gmpay",
 	"epay",
+	"epay_v1",
 	"alipay_page",
 	"alipay_wap",
 	"wechat_native",
@@ -17,6 +18,7 @@ export type PaymentProviderFamily =
 	| "cryptomus"
 	| "gmpay"
 	| "epay"
+	| "epay_v1"
 	| "alipay"
 	| "wechat";
 
@@ -165,6 +167,16 @@ export const epayCredentialSchema = epusdtCredentialSchema()
 			code: "custom",
 			path: ["pid"],
 			message: "EPay requires a numeric PID",
+		});
+	});
+export const epayV1CredentialSchema = epusdtCredentialSchema()
+	.extend({ paymentMethod: paymentMethodSchema })
+	.superRefine((value, context) => {
+		if (/^\d+$/.test(value.pid)) return;
+		context.addIssue({
+			code: "custom",
+			path: ["pid"],
+			message: "EPay V1 requires a numeric PID",
 		});
 	});
 
