@@ -64,23 +64,32 @@ export const epayV1PaymentProvider: PaymentProviderAdapter = {
 			name: input.description,
 			money: minorToDecimal(input.amountMinor, input.currencyDecimals),
 			sign_type: "MD5",
+			clientip: input.payerIp || "127.0.0.1",
 		};
-		if (input.payerIp) params.clientip = input.payerIp;
 		if (input.payerMobile) params.device = "mobile";
 		params.sign = signEpusdt(
 			params,
 			credential.secretKey,
 			new Set(["sign", "sign_type"]),
 		);
-		const response = await fetcher(
-			epusdtUrl(credential.baseUrl, "/mapi.php"),
-			{
-				method: "POST",
-				headers: { "Content-Type": "application/x-www-form-urlencoded" },
-				body: new URLSearchParams(params),
-				signal: AbortSignal.timeout(15_000),
-			},
-		);
+		let response: Response;
+		try {
+			response = await fetcher(
+				epusdtUrl(credential.baseUrl, "/mapi.php"),
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/x-www-form-urlencoded" },
+					body: new URLSearchParams(params),
+					signal: AbortSignal.timeout(15_000),
+				},
+			);
+		} catch (error) {
+			throw new DomainError(
+				"payment_provider_network_error",
+				502,
+				`无法连接到支付平台: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
 		const result = mapiResponseSchema.parse(await parseEpusdtJson(response));
 		// 安全校验：EPay 返回的金额必须与请求金额一致
 		const requestedMoney = minorToDecimal(input.amountMinor, input.currencyDecimals);
