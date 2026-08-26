@@ -63,7 +63,10 @@ export function normalizeServerFunctionError(
 		);
 	}
 	if (error instanceof z.ZodError) {
-		return new ServerFunctionError("invalid_input", 400, "Invalid request");
+		const issues = error.issues
+			.map((i) => `${i.path.join(".")}: ${i.message}`)
+			.join("; ");
+		return new ServerFunctionError("invalid_input", 400, `Invalid request: ${issues}`);
 	}
 	return new ServerFunctionError(
 		"internal_error",

@@ -90,7 +90,8 @@ export const epayV1PaymentProvider: PaymentProviderAdapter = {
 				`无法连接到支付平台: ${error instanceof Error ? error.message : String(error)}`,
 			);
 		}
-		const result = mapiResponseSchema.parse(await parseEpusdtJson(response));
+		const json = await parseEpusdtJson(response);
+		const result = mapiResponseSchema.parse(json);
 		// 安全校验：EPay 返回的金额必须与请求金额一致
 		const requestedMoney = minorToDecimal(input.amountMinor, input.currencyDecimals);
 		if (result.money && result.money !== requestedMoney) {
@@ -109,6 +110,13 @@ export const epayV1PaymentProvider: PaymentProviderAdapter = {
 			result.qrcode ??
 			result.out_trade_no ??
 			result.trade_no;
+		if (!checkoutUrl) {
+			throw new DomainError(
+				"payment_provider_invalid_response",
+				502,
+				`支付平台响应缺少支付URL: ${JSON.stringify(json)}`,
+			);
+		}
 		return {
 			providerPaymentId: result.trade_no,
 			checkoutUrl,
