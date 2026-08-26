@@ -79,7 +79,7 @@ const createPaymentSchema = z.object({
 		.optional(),
 	successUrl: z.url(),
 	cancelUrl: z.url(),
-	payerIp: z.ipv4().nullable().default(null),
+	payerIp: z.string().ip().nullable().default(null),
 	payerMobile: z.boolean().default(false),
 });
 
