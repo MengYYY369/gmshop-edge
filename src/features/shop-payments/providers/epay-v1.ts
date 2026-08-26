@@ -30,7 +30,7 @@ const mapiResponseSchema = z.object({
 	code: z.union([z.literal(1), z.literal("1")]),
 	msg: z.string(),
 	trade_no: z.string().min(1),
-	money: z.string(),
+	money: z.string().optional(),
 	out_trade_no: z.string().optional(),
 	type: z.string().optional(),
 	payurl: z.string().optional(),
