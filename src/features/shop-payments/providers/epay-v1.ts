@@ -51,7 +51,7 @@ const epayV1OrderQuerySchema = z.object({
 });
 
 export const epayV1PaymentProvider: PaymentProviderAdapter = {
-	checkoutPresentation: "qr",
+	checkoutPresentation: "redirect",
 	refundMode: "manual",
 	async createPayment(input, rawCredential, fetcher = fetch) {
 		const credential = epayV1CredentialSchema.parse(rawCredential);
