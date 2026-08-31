@@ -163,9 +163,13 @@ export const gmpayPaymentProvider: PaymentProviderAdapter = {
 			type:
 				event.status === "paid" || event.status === "overpaid"
 					? "payment_succeeded"
-					: event.status === "expired" || event.status === "cancelled"
-						? "payment_expired"
-						: "payment_failed",
+					: event.status === "pending" ||
+							event.status === "confirming" ||
+							event.status === "partially_paid"
+						? "payment_pending"
+						: event.status === "expired" || event.status === "cancelled"
+							? "payment_expired"
+							: "payment_failed",
 			amountMinor: null,
 			amountDecimal: event.amount,
 			currency: null,
