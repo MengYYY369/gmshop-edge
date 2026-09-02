@@ -49,9 +49,10 @@ async function applySql(database: D1Database, name: string) {
 		new URL(`../../drizzle/${name}`, import.meta.url),
 		"utf8",
 	);
-	for (const statement of source
+	const statements = source
 		.split("--> statement-breakpoint")
 		.map((value) => value.trim())
-		.filter(Boolean))
-		await database.prepare(statement).run();
+		.filter(Boolean)
+		.map((statement) => database.prepare(statement));
+	await database.batch(statements);
 }
